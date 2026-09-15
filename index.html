@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+  <meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#131315" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f5f5f7"><!-- via JS, folgt dem App-Theme -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="FOS">
+  <title>FOS Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app" id="app">
+
+    <!-- Overlay für mobiles Menü -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">F</div>
+        <div>
+          <div class="brand-name">FOS Dashboard</div>
+          <div class="brand-sub">Schuljahr 2026/27</div>
+        </div>
+      </div>
+      <nav class="nav" id="nav"><!-- via JS --></nav>
+      <div class="sidebar-foot">
+        <div class="storage-mini" id="storageMini">–</div>
+      </div>
+    </aside>
+
+    <!-- Hauptbereich -->
+    <div class="main">
+      <header class="topbar">
+        <button class="hamburger" id="btnMenu" aria-label="Menü öffnen">
+          <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        </button>
+        <div class="head-titles">
+          <div class="head-name">Samreen Singh</div>
+          <div class="head-date">
+            <span id="headDate">–</span>
+            <span class="pill-today">Heute</span>
+          </div>
+        </div>
+
+        <div class="search" id="searchWrap">
+          <svg class="s-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" id="searchInput" placeholder="Suchen…" autocomplete="off" aria-label="Globale Suche">
+        </div>
+
+        <button class="icon-btn" id="btnTheme" aria-label="Design wechseln"></button>
+      </header>
+
+      <main class="view" id="view"><!-- via JS --></main>
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
