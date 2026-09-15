@@ -1,0 +1,1188 @@
+/* =========================================================================
+   FOS Dashboard – app.js
+   Vanilla JS · IndexedDB · lokal · offline-fähig
+   Entitäten: subjects, tasks, exams, grades, appointments, internship, images
+   ========================================================================= */
+
+'use strict';
+
+/* -------------------------------------------------------------------------
+   0 · Icons (inline SVG)
+   ------------------------------------------------------------------------- */
+const ICONS = {
+  grid:      '<rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/>',
+  tasks:     '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+  calendar:  '<rect x="3" y="4.5" width="18" height="17" rx="2.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  clipboard: '<path d="M8 4h8v2H8z"/><rect x="4" y="4" width="16" height="18" rx="2.5"/><line x1="8" y1="11.5" x2="16" y2="11.5"/><line x1="8" y1="15.5" x2="13.5" y2="15.5"/>',
+  award:     '<circle cx="12" cy="9" r="6"/><path d="M8.8 14.2 7.2 22l4.8-2.8 4.8 2.8-1.6-7.8"/>',
+  briefcase: '<rect x="2.5" y="7" width="19" height="13.5" rx="2.5"/><path d="M8.5 7V5.2A2.2 2.2 0 0 1 10.7 3h2.6a2.2 2.2 0 0 1 2.2 2.2V7"/><line x1="2.5" y1="13" x2="21.5" y2="13"/>',
+  book:      '<path d="M4 5A2.5 2.5 0 0 1 6.5 2.5H20v16.5H6.5A2.5 2.5 0 0 0 4 21.5z"/><line x1="8" y1="7.5" x2="16" y2="7.5"/>',
+  plus:      '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  check:     '<polyline points="20 6 9 17 4 12"/>',
+  x:         '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  image:     '<rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15.5 15.5 10 5 20.5"/>',
+  trash:     '<polyline points="3 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
+  pencil:    '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  clock:     '<circle cx="12" cy="12" r="9"/><polyline points="12 7.5 12 12.2 15 14"/>',
+  sun:       '<circle cx="12" cy="12" r="4"/><line x1="12" y1="1.5" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22.5"/><line x1="1.5" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22.5" y2="12"/><line x1="4.8" y1="4.8" x2="6.6" y2="6.6"/><line x1="17.4" y1="17.4" x2="19.2" y2="19.2"/><line x1="19.2" y1="4.8" x2="17.4" y2="6.6"/><line x1="6.6" y1="17.4" x2="4.8" y2="19.2"/>',
+  moon:      '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  inbox:     '<path d="M22 12h-5.5l-1.8 2.6H9.3L7.5 12H2"/><path d="M5.4 5.2h13.2l3 6.8v6a1 1 0 0 1-1 1H3.4a1 1 0 0 1-1-1v-6z"/>',
+  upload:    '<path d="M12 15.5V3.5"/><polyline points="7.5 8 12 3.5 16.5 8"/><path d="M5 20.5h14"/>',
+  chevron:   '<polyline points="9 5 16 12 9 19"/>',
+  camera:    '<path d="M4 8.5a2 2 0 0 1 2-2h1.5l1.3-2h6.4l1.3 2H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/>',
+};
+function icon(name, cls = 'ico') {
+  return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`;
+}
+
+/* -------------------------------------------------------------------------
+   1 · Utilities
+   ------------------------------------------------------------------------- */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function startOfToday() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+function todayISO() { return dateToISO(new Date()); }
+function dateToISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function parseISO(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
+function daysUntil(iso) { return Math.round((parseISO(iso) - startOfToday()) / 86400000); }
+
+const fmtHeader = new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+const fmtWeekday = new Intl.DateTimeFormat('de-DE', { weekday: 'long' });
+const fmtLong = new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
+
+function fmtShort(iso) { const d = parseISO(iso); return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.`; }
+function relDayName(iso) {
+  const n = daysUntil(iso);
+  if (n === 0) return 'Heute';
+  if (n === 1) return 'Morgen';
+  if (n === -1) return 'Gestern';
+  return fmtWeekday.format(parseISO(iso));
+}
+
+/* Fristen-Logik: >4 Tage normal · ≤4 gelb · ≤2 rot · überfällig markiert */
+function dueMeta(iso, time) {
+  if (!iso) return { n: null, cls: '', label: '' };
+  const n = daysUntil(iso);
+  const t = time ? ` · ${time}` : '';
+  if (n < 0) return { n, cls: 'over', label: n === -1 ? 'Gestern fällig' : `${-n} Tage überfällig` };
+  if (n === 0) return { n, cls: 'danger', label: `Heute${t}` };
+  if (n === 1) return { n, cls: 'danger', label: `Morgen${t}` };
+  if (n <= 2) return { n, cls: 'danger', label: `in ${n} Tagen` };
+  if (n <= 4) return { n, cls: 'warn', label: `in ${n} Tagen` };
+  return { n, cls: '', label: fmtShort(iso) };
+}
+
+/* -------------------------------------------------------------------------
+   2 · IndexedDB
+   ------------------------------------------------------------------------- */
+const DB_NAME = 'fos_dashboard';
+const DB_VERSION = 1;
+const STORES = ['subjects', 'tasks', 'exams', 'grades', 'appointments', 'internship', 'images'];
+let _db = null;
+
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      STORES.forEach((s) => { if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' }); });
+    };
+    req.onsuccess = (e) => { _db = e.target.result; res(_db); };
+    req.onerror = (e) => rej(e.target.error);
+  });
+}
+function dbAll(store) {
+  return new Promise((res, rej) => {
+    const r = _db.transaction(store, 'readonly').objectStore(store).getAll();
+    r.onsuccess = () => res(r.result || []);
+    r.onerror = () => rej(r.error);
+  });
+}
+function dbPut(store, val) {
+  return new Promise((res, rej) => {
+    const r = _db.transaction(store, 'readwrite').objectStore(store).put(val);
+    r.onsuccess = () => res(val);
+    r.onerror = () => rej(r.error);
+  });
+}
+function dbDel(store, id) {
+  return new Promise((res, rej) => {
+    const r = _db.transaction(store, 'readwrite').objectStore(store).delete(id);
+    r.onsuccess = () => res();
+    r.onerror = () => rej(r.error);
+  });
+}
+
+/* -------------------------------------------------------------------------
+   3 · Bilder: dekodieren, skalieren, komprimieren (WebP → JPEG-Fallback)
+   ------------------------------------------------------------------------- */
+async function decodeImage(file) {
+  if ('createImageBitmap' in window) {
+    try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch (_) {}
+    try { return await createImageBitmap(file); } catch (_) {}
+  }
+  return await new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const im = new Image();
+    im.onload = () => { res(im); };
+    im.onerror = () => rej(new Error('decode'));
+    im.src = url;
+  });
+}
+function canvasToBlob(canvas, q) {
+  return new Promise((res) => {
+    canvas.toBlob((b) => {
+      if (b && b.type === 'image/webp') return res(b);
+      canvas.toBlob((j) => res(j || b), 'image/jpeg', q);
+    }, 'image/webp', q);
+  });
+}
+async function scaleToBlob(src, maxDim, q) {
+  const sw = src.width, sh = src.height;
+  const scale = Math.min(1, maxDim / Math.max(sw, sh));
+  const w = Math.max(1, Math.round(sw * scale));
+  const h = Math.max(1, Math.round(sh * scale));
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(src, 0, 0, w, h);
+  return canvasToBlob(c, q);
+}
+async function processImage(file) {
+  const src = await decodeImage(file);
+  const blob = await scaleToBlob(src, 1600, 0.82);   // Ansichts-Version
+  const thumb = await scaleToBlob(src, 480, 0.72);   // Vorschau
+  if (src.close) src.close();
+  return { blob, thumb, size: blob.size + thumb.size };
+}
+function bytesToStr(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024 * 1024) return (b / 1024).toFixed(0) + ' KB';
+  return (b / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+/* -------------------------------------------------------------------------
+   4 · State
+   ------------------------------------------------------------------------- */
+const state = {
+  view: 'dashboard',
+  subjects: [], tasks: [], exams: [], grades: [], appointments: [], internship: [], images: [],
+};
+const objUrls = new Map(); // id -> objectURL (Vorschauen)
+
+function thumbUrl(imgRec) {
+  if (objUrls.has(imgRec.id)) return objUrls.get(imgRec.id);
+  const u = URL.createObjectURL(imgRec.thumb || imgRec.blob);
+  objUrls.set(imgRec.id, u);
+  return u;
+}
+async function loadAll() {
+  const [subjects, tasks, exams, grades, appointments, internship, images] = await Promise.all(
+    STORES.map((s) => dbAll(s))
+  );
+  Object.assign(state, { subjects, tasks, exams, grades, appointments, internship, images });
+  state.subjects.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+}
+async function reload(store) {
+  state[store] = await dbAll(store);
+  if (store === 'subjects') state.subjects.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+}
+function subjectName(id) { const s = state.subjects.find((x) => x.id === id); return s ? s.name : '—'; }
+function imagesFor(type, id) { return state.images.filter((im) => im.relatedItemType === type && im.relatedItemId === id); }
+
+/* -------------------------------------------------------------------------
+   5 · Toast / Modal / Confirm / Lightbox
+   ------------------------------------------------------------------------- */
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  $('#toastWrap').appendChild(t);
+  requestAnimationFrame(() => t.classList.add('in'));
+  setTimeout(() => { t.classList.remove('in'); setTimeout(() => t.remove(), 220); }, 2100);
+}
+
+function openModal({ title, wide = false }) {
+  const back = document.createElement('div');
+  back.className = 'modal-backdrop';
+  back.innerHTML = `
+    <div class="modal ${wide ? 'wide' : ''}">
+      <div class="modal-head">
+        <h3>${esc(title)}</h3>
+        <button class="icon-btn close" data-close aria-label="Schließen">${icon('x')}</button>
+      </div>
+      <div class="modal-body"></div>
+      <div class="modal-foot"></div>
+    </div>`;
+  document.body.appendChild(back);
+  requestAnimationFrame(() => back.classList.add('in'));
+  const close = () => { back.classList.remove('in'); setTimeout(() => back.remove(), 240); };
+  back.addEventListener('click', (e) => { if (e.target === back || e.target.closest('[data-close]')) close(); });
+  return { el: back, body: $('.modal-body', back), foot: $('.modal-foot', back), close };
+}
+
+function confirmDialog(message, { danger = true, okLabel = 'Löschen' } = {}) {
+  return new Promise((resolve) => {
+    const m = openModal({ title: 'Bestätigen' });
+    m.body.innerHTML = `<p style="color:var(--text-2);line-height:1.5">${esc(message)}</p>`;
+    m.foot.innerHTML = `
+      <button class="btn ghost" data-no>Abbrechen</button>
+      <button class="btn ${danger ? 'danger' : 'primary'}" data-yes>${esc(okLabel)}</button>`;
+    $('[data-no]', m.el).onclick = () => { m.close(); resolve(false); };
+    $('[data-yes]', m.el).onclick = () => { m.close(); resolve(true); };
+  });
+}
+
+function openLightbox(imgRec) {
+  const lb = document.createElement('div');
+  lb.className = 'lightbox';
+  const url = URL.createObjectURL(imgRec.blob);
+  lb.innerHTML = `<button class="lb-close" aria-label="Schließen">${icon('x')}</button><img src="${url}" alt="">`;
+  document.body.appendChild(lb);
+  requestAnimationFrame(() => lb.classList.add('in'));
+  const close = () => { lb.classList.remove('in'); setTimeout(() => { lb.remove(); URL.revokeObjectURL(url); }, 220); };
+  lb.addEventListener('click', (e) => { if (e.target === lb || e.target.closest('.lb-close')) close(); });
+}
+
+/* -------------------------------------------------------------------------
+   6 · Bild-Editor für Formulare (mehrere Uploads, Vorschau, Entfernen)
+   ------------------------------------------------------------------------- */
+function mountImageEditor(host, existing = []) {
+  const model = { keep: existing.slice(), add: [] }; // add: {id, blob, thumb, url, size}
+  host.innerHTML = `
+    <div class="img-grid" data-imggrid></div>
+    <label class="uploader" style="margin-top:10px;display:block">
+      ${icon('camera')}<div>Bilder hinzufügen · Kamera oder Galerie</div>
+      <input type="file" accept="image/*" multiple hidden data-imgfile>
+    </label>
+    <div class="stat-sub" data-imgnote style="margin-top:8px"></div>`;
+  const grid = $('[data-imggrid]', host);
+  const note = $('[data-imgnote]', host);
+  const file = $('[data-imgfile]', host);
+
+  function draw() {
+    const cells = [];
+    model.keep.forEach((r) => cells.push(cell(thumbUrl(r), r.id, 'keep')));
+    model.add.forEach((a) => cells.push(cell(a.url, a.id, 'add')));
+    grid.innerHTML = cells.join('') || `<div class="stat-sub">Noch keine Bilder.</div>`;
+    const total = model.add.reduce((s, a) => s + a.size, 0);
+    note.textContent = total ? `${model.add.length} neu · ${bytesToStr(total)} (komprimiert)` : '';
+  }
+  function cell(url, id, kind) {
+    return `<div class="img-cell" data-open="${id}" data-kind="${kind}">
+      <img src="${url}" alt="" loading="lazy">
+      <button class="rm" data-rm="${id}" data-kind="${kind}" aria-label="Entfernen">${icon('x')}</button>
+    </div>`;
+  }
+  grid.addEventListener('click', (e) => {
+    const rm = e.target.closest('[data-rm]');
+    if (rm) {
+      e.stopPropagation();
+      const id = rm.dataset.rm;
+      if (rm.dataset.kind === 'add') {
+        const i = model.add.findIndex((a) => a.id === id);
+        if (i > -1) { URL.revokeObjectURL(model.add[i].url); model.add.splice(i, 1); }
+      } else {
+        model.keep = model.keep.filter((r) => r.id !== id);
+      }
+      draw();
+      return;
+    }
+    const op = e.target.closest('[data-open]');
+    if (op && op.dataset.kind === 'keep') {
+      const r = model.keep.find((x) => x.id === op.dataset.open);
+      if (r) openLightbox(r);
+    }
+  });
+  file.addEventListener('change', async (e) => {
+    const files = [...e.target.files];
+    file.value = '';
+    note.textContent = 'Optimiere Bilder…';
+    for (const f of files) {
+      if (!f.type.startsWith('image/')) continue;
+      try {
+        const p = await processImage(f);
+        model.add.push({ id: uid(), blob: p.blob, thumb: p.thumb, size: p.size, url: URL.createObjectURL(p.thumb) });
+      } catch (_) { toast('Ein Bild konnte nicht geladen werden.'); }
+    }
+    draw();
+  });
+  draw();
+
+  return {
+    async persist(relatedItemType, relatedItemId, meta) {
+      const keptIds = new Set(model.keep.map((r) => r.id));
+      for (const r of existing) if (!keptIds.has(r.id)) await dbDel('images', r.id);
+      for (const a of model.add) {
+        await dbPut('images', {
+          id: a.id, blob: a.blob, thumb: a.thumb,
+          category: meta.category || 'Sonstiges',
+          subjectId: meta.subjectId || null,
+          date: meta.date || todayISO(),
+          title: meta.title || '',
+          relatedItemType, relatedItemId,
+          size: a.size, createdAt: Date.now(),
+        });
+      }
+    },
+  };
+}
+
+/* -------------------------------------------------------------------------
+   7 · Formular-Bausteine
+   ------------------------------------------------------------------------- */
+function subjectOptions(selected, includeEmpty = true) {
+  let html = includeEmpty ? `<option value="">Kein Fach</option>` : '';
+  html += state.subjects.map((s) => `<option value="${s.id}" ${s.id === selected ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
+  return html;
+}
+function ptsPicker(name, selected) {
+  let html = `<div class="pts-picker" data-pts="${name}">`;
+  for (let i = 0; i <= 15; i++) {
+    html += `<button type="button" class="pts-btn ${i === selected ? 'on' : ''}" data-val="${i}">${i}</button>`;
+  }
+  html += `</div><input type="hidden" data-ptsval="${name}" value="${selected ?? ''}">`;
+  return html;
+}
+function wirePtsPicker(root) {
+  $$('.pts-picker', root).forEach((pk) => {
+    pk.addEventListener('click', (e) => {
+      const b = e.target.closest('.pts-btn'); if (!b) return;
+      $$('.pts-btn', pk).forEach((x) => x.classList.remove('on'));
+      b.classList.add('on');
+      const hidden = $(`[data-ptsval="${pk.dataset.pts}"]`, root);
+      if (hidden) hidden.value = b.dataset.val;
+    });
+  });
+}
+
+/* -------------------------------------------------------------------------
+   8 · Entitäts-Formulare
+   ------------------------------------------------------------------------- */
+function openTaskForm(existing) {
+  const t = existing || {};
+  const m = openModal({ title: existing ? 'Aufgabe bearbeiten' : 'Neue Aufgabe' });
+  m.body.innerHTML = `
+    <div class="field"><label>Titel</label><input class="input" data-f="title" value="${esc(t.title || '')}" placeholder="z. B. Erörterung schreiben"></div>
+    <div class="row2">
+      <div class="field"><label>Fach</label><select class="select" data-f="subjectId">${subjectOptions(t.subjectId)}</select></div>
+      <div class="field"><label>Abgabe</label><input class="input" type="date" data-f="dueDate" value="${esc(t.dueDate || todayISO())}"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Uhrzeit <span class="hint">optional</span></label><input class="input" type="time" data-f="dueTime" value="${esc(t.dueTime || '')}"></div>
+      <div class="field" style="display:flex;align-items:flex-end">
+        <label class="btn block" style="cursor:pointer;justify-content:flex-start;gap:10px">
+          <span class="check ${t.done ? 'on' : ''}" data-check>${icon('check')}</span> Erledigt
+          <input type="checkbox" data-f="done" ${t.done ? 'checked' : ''} hidden>
+        </label>
+      </div>
+    </div>
+    <div class="field"><label>Beschreibung <span class="hint">optional</span></label><textarea class="textarea" data-f="description" placeholder="Worum geht es?">${esc(t.description || '')}</textarea></div>
+    <div class="field"><label>Notiz <span class="hint">optional</span></label><input class="input" data-f="note" value="${esc(t.note || '')}" placeholder="Kurze Notiz"></div>
+    <div class="field"><label>Bilder</label><div data-imghost></div></div>`;
+  m.foot.innerHTML = `
+    ${existing ? `<button class="btn danger" data-del>Löschen</button>` : ''}
+    <button class="btn ghost" data-close>Abbrechen</button>
+    <button class="btn primary" data-save>Speichern</button>`;
+
+  // Erledigt-Toggle
+  const chk = $('[data-check]', m.el), chkInput = $('[data-f="done"]', m.el);
+  chk.parentElement.addEventListener('click', (e) => {
+    e.preventDefault();
+    chkInput.checked = !chkInput.checked;
+    chk.classList.toggle('on', chkInput.checked);
+  });
+
+  const img = mountImageEditor($('[data-imghost]', m.el), existing ? imagesFor('task', existing.id) : []);
+
+  if (existing) $('[data-del]', m.el).onclick = async () => {
+    if (await confirmDialog('Diese Aufgabe und zugehörige Bilder löschen?')) {
+      for (const im of imagesFor('task', existing.id)) await dbDel('images', im.id);
+      await dbDel('tasks', existing.id);
+      await reload('tasks'); await reload('images');
+      m.close(); render(); toast('Aufgabe gelöscht');
+    }
+  };
+  $('[data-save]', m.el).onclick = async () => {
+    const g = (f) => $(`[data-f="${f}"]`, m.el);
+    const title = g('title').value.trim();
+    if (!title) { g('title').focus(); toast('Titel fehlt'); return; }
+    const id = existing ? existing.id : uid();
+    const rec = {
+      id, title,
+      subjectId: g('subjectId').value || null,
+      dueDate: g('dueDate').value || null,
+      dueTime: g('dueTime').value || null,
+      description: g('description').value.trim(),
+      note: g('note').value.trim(),
+      done: g('done').checked,
+      createdAt: existing?.createdAt || Date.now(),
+    };
+    await dbPut('tasks', rec);
+    await img.persist('task', id, { category: 'Hausaufgabe', subjectId: rec.subjectId, date: rec.dueDate, title: rec.title });
+    await reload('tasks'); await reload('images');
+    m.close(); render(); toast(existing ? 'Aufgabe gespeichert' : 'Aufgabe erstellt');
+  };
+}
+
+function openExamForm(existing) {
+  const t = existing || {};
+  const m = openModal({ title: existing ? 'Klausur bearbeiten' : 'Neue Klausur' });
+  m.body.innerHTML = `
+    <div class="field"><label>Titel</label><input class="input" data-f="title" value="${esc(t.title || '')}" placeholder="z. B. Schulaufgabe"></div>
+    <div class="row2">
+      <div class="field"><label>Fach</label><select class="select" data-f="subjectId">${subjectOptions(t.subjectId)}</select></div>
+      <div class="field"><label>Datum</label><input class="input" type="date" data-f="date" value="${esc(t.date || todayISO())}"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Uhrzeit <span class="hint">optional</span></label><input class="input" type="time" data-f="time" value="${esc(t.time || '')}"></div>
+      <div class="field"><label>Erreichte Punkte <span class="hint">nach der Klausur</span></label><input class="input" type="number" min="0" max="15" data-f="points" value="${t.points ?? ''}" placeholder="0–15"></div>
+    </div>
+    <div class="field"><label>Notiz <span class="hint">optional</span></label><textarea class="textarea" data-f="note" placeholder="Themen, Hinweise …">${esc(t.note || '')}</textarea></div>
+    <div class="field"><label>Bilder <span class="hint">z. B. zurückgegebene Klausur</span></label><div data-imghost></div></div>`;
+  m.foot.innerHTML = `
+    ${existing ? `<button class="btn danger" data-del>Löschen</button>` : ''}
+    <button class="btn ghost" data-close>Abbrechen</button>
+    <button class="btn primary" data-save>Speichern</button>`;
+
+  const img = mountImageEditor($('[data-imghost]', m.el), existing ? imagesFor('exam', existing.id) : []);
+
+  if (existing) $('[data-del]', m.el).onclick = async () => {
+    if (await confirmDialog('Diese Klausur und zugehörige Bilder löschen?')) {
+      for (const im of imagesFor('exam', existing.id)) await dbDel('images', im.id);
+      await dbDel('exams', existing.id);
+      await reload('exams'); await reload('images');
+      m.close(); render(); toast('Klausur gelöscht');
+    }
+  };
+  $('[data-save]', m.el).onclick = async () => {
+    const g = (f) => $(`[data-f="${f}"]`, m.el);
+    const id = existing ? existing.id : uid();
+    let points = g('points').value === '' ? null : Math.max(0, Math.min(15, parseInt(g('points').value, 10)));
+    const rec = {
+      id,
+      title: g('title').value.trim() || 'Klausur',
+      subjectId: g('subjectId').value || null,
+      date: g('date').value || null,
+      time: g('time').value || null,
+      points,
+      note: g('note').value.trim(),
+      createdAt: existing?.createdAt || Date.now(),
+    };
+    await dbPut('exams', rec);
+    await img.persist('exam', id, { category: 'Klausur', subjectId: rec.subjectId, date: rec.date, title: rec.title });
+    await reload('exams'); await reload('images');
+    m.close(); render(); toast(existing ? 'Klausur gespeichert' : 'Klausur erstellt');
+  };
+}
+
+function openGradeForm(existing, presetSubject) {
+  const t = existing || {};
+  const m = openModal({ title: existing ? 'Note bearbeiten' : 'Note hinzufügen' });
+  m.body.innerHTML = `
+    <div class="row2">
+      <div class="field"><label>Fach</label><select class="select" data-f="subjectId">${subjectOptions(t.subjectId || presetSubject, false)}</select></div>
+      <div class="field"><label>Datum</label><input class="input" type="date" data-f="date" value="${esc(t.date || todayISO())}"></div>
+    </div>
+    <div class="field"><label>Bezeichnung <span class="hint">optional</span></label><input class="input" data-f="label" value="${esc(t.label || '')}" placeholder="z. B. Schulaufgabe, Stegreif"></div>
+    <div class="field"><label>Punkte <span class="hint">0–15 (FOS)</span></label>${ptsPicker('grade', t.points)}</div>`;
+  m.foot.innerHTML = `
+    ${existing ? `<button class="btn danger" data-del>Löschen</button>` : ''}
+    <button class="btn ghost" data-close>Abbrechen</button>
+    <button class="btn primary" data-save>Speichern</button>`;
+  wirePtsPicker(m.el);
+
+  if (existing) $('[data-del]', m.el).onclick = async () => {
+    if (await confirmDialog('Diese Note löschen?')) {
+      await dbDel('grades', existing.id); await reload('grades');
+      m.close(); render(); toast('Note gelöscht');
+    }
+  };
+  $('[data-save]', m.el).onclick = async () => {
+    const g = (f) => $(`[data-f="${f}"]`, m.el);
+    const pv = $('[data-ptsval="grade"]', m.el).value;
+    if (pv === '') { toast('Punkte wählen'); return; }
+    const subjectId = g('subjectId').value;
+    if (!subjectId) { toast('Fach wählen'); return; }
+    const rec = {
+      id: existing ? existing.id : uid(),
+      subjectId,
+      points: parseInt(pv, 10),
+      label: g('label').value.trim(),
+      date: g('date').value || todayISO(),
+      createdAt: existing?.createdAt || Date.now(),
+    };
+    await dbPut('grades', rec); await reload('grades');
+    m.close(); render(); toast(existing ? 'Note gespeichert' : 'Note hinzugefügt');
+  };
+}
+
+function openAppointmentForm(existing) {
+  const t = existing || {};
+  const m = openModal({ title: existing ? 'Termin bearbeiten' : 'Neuer Termin' });
+  m.body.innerHTML = `
+    <div class="field"><label>Titel</label><input class="input" data-f="title" value="${esc(t.title || '')}" placeholder="z. B. Elternsprechtag"></div>
+    <div class="row2">
+      <div class="field"><label>Datum</label><input class="input" type="date" data-f="date" value="${esc(t.date || todayISO())}"></div>
+      <div class="field"><label>Uhrzeit <span class="hint">optional</span></label><input class="input" type="time" data-f="time" value="${esc(t.time || '')}"></div>
+    </div>
+    <div class="field"><label>Notiz <span class="hint">optional</span></label><textarea class="textarea" data-f="note" placeholder="Details">${esc(t.note || '')}</textarea></div>`;
+  m.foot.innerHTML = `
+    ${existing ? `<button class="btn danger" data-del>Löschen</button>` : ''}
+    <button class="btn ghost" data-close>Abbrechen</button>
+    <button class="btn primary" data-save>Speichern</button>`;
+
+  if (existing) $('[data-del]', m.el).onclick = async () => {
+    if (await confirmDialog('Diesen Termin löschen?')) {
+      await dbDel('appointments', existing.id); await reload('appointments');
+      m.close(); render(); toast('Termin gelöscht');
+    }
+  };
+  $('[data-save]', m.el).onclick = async () => {
+    const g = (f) => $(`[data-f="${f}"]`, m.el);
+    const title = g('title').value.trim();
+    if (!title) { toast('Titel fehlt'); return; }
+    const rec = {
+      id: existing ? existing.id : uid(),
+      title, date: g('date').value || null, time: g('time').value || null,
+      note: g('note').value.trim(), createdAt: existing?.createdAt || Date.now(),
+    };
+    await dbPut('appointments', rec); await reload('appointments');
+    m.close(); render(); toast(existing ? 'Termin gespeichert' : 'Termin erstellt');
+  };
+}
+
+function openInternshipForm(existing) {
+  const t = existing || {};
+  const m = openModal({ title: existing ? 'Praktikumstag bearbeiten' : 'Neuer Praktikumstag' });
+  m.body.innerHTML = `
+    <div class="field"><label>Datum</label><input class="input" type="date" data-f="date" value="${esc(t.date || todayISO())}"></div>
+    <div class="field"><label>Tagesbericht</label><textarea class="textarea" data-f="report" style="min-height:110px" placeholder="Was hast du heute gemacht?">${esc(t.report || '')}</textarea></div>
+    <div class="field"><label>Notizen <span class="hint">optional</span></label><input class="input" data-f="note" value="${esc(t.note || '')}" placeholder="Weitere Infos"></div>
+    <div class="field"><label>Bilder</label><div data-imghost></div></div>`;
+  m.foot.innerHTML = `
+    ${existing ? `<button class="btn danger" data-del>Löschen</button>` : ''}
+    <button class="btn ghost" data-close>Abbrechen</button>
+    <button class="btn primary" data-save>Speichern</button>`;
+
+  const img = mountImageEditor($('[data-imghost]', m.el), existing ? imagesFor('internship', existing.id) : []);
+
+  if (existing) $('[data-del]', m.el).onclick = async () => {
+    if (await confirmDialog('Diesen Praktikumstag und zugehörige Bilder löschen?')) {
+      for (const im of imagesFor('internship', existing.id)) await dbDel('images', im.id);
+      await dbDel('internship', existing.id);
+      await reload('internship'); await reload('images');
+      m.close(); render(); toast('Praktikumstag gelöscht');
+    }
+  };
+  $('[data-save]', m.el).onclick = async () => {
+    const g = (f) => $(`[data-f="${f}"]`, m.el);
+    const id = existing ? existing.id : uid();
+    const rec = {
+      id, date: g('date').value || todayISO(),
+      report: g('report').value.trim(), note: g('note').value.trim(),
+      createdAt: existing?.createdAt || Date.now(),
+    };
+    await dbPut('internship', rec);
+    await img.persist('internship', id, { category: 'Praktikum', subjectId: null, date: rec.date, title: 'Praktikum' });
+    await reload('internship'); await reload('images');
+    m.close(); render(); toast(existing ? 'Praktikumstag gespeichert' : 'Praktikumstag erstellt');
+  };
+}
+
+function openSubjectForm(existing) {
+  const m = openModal({ title: existing ? 'Fach umbenennen' : 'Fach hinzufügen' });
+  m.body.innerHTML = `<div class="field"><label>Name des Fachs</label><input class="input" data-f="name" value="${esc(existing?.name || '')}" placeholder="z. B. Physik"></div>`;
+  m.foot.innerHTML = `<button class="btn ghost" data-close>Abbrechen</button><button class="btn primary" data-save>Speichern</button>`;
+  setTimeout(() => $('[data-f="name"]', m.el).focus(), 60);
+  $('[data-save]', m.el).onclick = async () => {
+    const name = $('[data-f="name"]', m.el).value.trim();
+    if (!name) { toast('Name fehlt'); return; }
+    const rec = { id: existing ? existing.id : uid(), name, createdAt: existing?.createdAt || Date.now() };
+    await dbPut('subjects', rec); await reload('subjects');
+    m.close(); render(); toast(existing ? 'Fach gespeichert' : 'Fach hinzugefügt');
+  };
+}
+
+/* -------------------------------------------------------------------------
+   9 · Noten-Berechnung
+   ------------------------------------------------------------------------- */
+function subjectAverage(subjectId) {
+  const g = state.grades.filter((x) => x.subjectId === subjectId);
+  if (!g.length) return null;
+  return g.reduce((s, x) => s + x.points, 0) / g.length;
+}
+function overallAverage() {
+  const avgs = state.subjects.map((s) => subjectAverage(s.id)).filter((a) => a !== null);
+  if (!avgs.length) return null;
+  return avgs.reduce((s, a) => s + a, 0) / avgs.length;
+}
+function fmtAvg(a) { return a === null ? '–' : a.toFixed(2).replace('.', ','); }
+
+/* -------------------------------------------------------------------------
+   10 · Views
+   ------------------------------------------------------------------------- */
+function emptyBlock(text, sub) {
+  return `<div class="empty">${icon('inbox', 'ico')}<p>${esc(text)}</p>${sub ? `<div class="sub">${esc(sub)}</div>` : ''}</div>`;
+}
+
+/* --- Dashboard --- */
+function renderDashboard() {
+  const openTasks = state.tasks.filter((t) => !t.done);
+  const todayTasks = openTasks.filter((t) => t.dueDate && daysUntil(t.dueDate) <= 0);
+  const todayAppts = state.appointments.filter((a) => a.date && daysUntil(a.date) === 0);
+  const todayExams = state.exams.filter((e) => e.date && daysUntil(e.date) === 0);
+  const todayIntern = state.internship.filter((i) => daysUntil(i.date) === 0);
+
+  const todayItems = [
+    ...todayExams.map((e) => ({ t: `${esc(e.title)} · ${esc(subjectName(e.subjectId))}`, m: 'Klausur' + (e.time ? ' · ' + e.time : ''), cls: 'danger', act: `openExam:${e.id}` })),
+    ...todayTasks.map((t) => ({ t: esc(t.title), m: (t.subjectId ? subjectName(t.subjectId) : 'Aufgabe') + (daysUntil(t.dueDate) < 0 ? ' · überfällig' : ''), cls: daysUntil(t.dueDate) < 0 ? 'over' : 'danger', act: `openTask:${t.id}` })),
+    ...todayAppts.map((a) => ({ t: esc(a.title), m: 'Termin' + (a.time ? ' · ' + a.time : ''), cls: 'accent', act: `openAppt:${a.id}` })),
+    ...todayIntern.map((i) => ({ t: 'Praktikum', m: i.report ? i.report.slice(0, 40) : 'Tagesbericht', cls: 'accent', act: `openIntern:${i.id}` })),
+  ];
+
+  const upcoming = [
+    ...openTasks.filter((t) => t.dueDate && daysUntil(t.dueDate) > 0).map((t) => ({ date: t.dueDate, kind: 'Aufgabe', title: t.title, sub: subjectName(t.subjectId), act: `openTask:${t.id}` })),
+    ...state.exams.filter((e) => e.date && daysUntil(e.date) > 0).map((e) => ({ date: e.date, kind: 'Klausur', title: e.title, sub: subjectName(e.subjectId), act: `openExam:${e.id}` })),
+    ...state.appointments.filter((a) => a.date && daysUntil(a.date) > 0).map((a) => ({ date: a.date, kind: 'Termin', title: a.title, sub: '', act: `openAppt:${a.id}` })),
+  ].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
+
+  const nextExams = state.exams.filter((e) => e.date && daysUntil(e.date) >= 0).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 4);
+  const nextTasks = openTasks.filter((t) => t.dueDate).sort((a, b) => a.dueDate.localeCompare(b.dueDate)).slice(0, 4);
+  const nextAppts = state.appointments.filter((a) => a.date && daysUntil(a.date) >= 0).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 4);
+  const overall = overallAverage();
+  const lastIntern = [...state.internship].sort((a, b) => b.date.localeCompare(a.date))[0];
+  const imgTotal = state.images.reduce((s, i) => s + (i.size || 0), 0);
+
+  const overdue = openTasks.filter((t) => t.dueDate && daysUntil(t.dueDate) < 0).length;
+
+  const view = $('#view');
+  view.innerHTML = `
+    <div class="page-head">
+      <div><div class="page-title">Übersicht</div><div class="page-sub">${esc(fmtHeader.format(new Date()))}</div></div>
+      <button class="btn primary" data-act="newTask">${icon('plus')} Aufgabe</button>
+    </div>
+    <div class="grid">
+
+      <div class="card">
+        <div class="card-head">${icon('sun')}<span class="card-title">Heute</span></div>
+        ${todayItems.length ? `<div class="mini-list">${todayItems.map((i) => `
+          <div class="mini-row click" data-act="${i.act}">
+            <span class="mini-dot ${i.cls === 'over' || i.cls === 'danger' ? '' : i.cls}" style="${i.cls === 'danger' || i.cls === 'over' ? 'background:var(--danger)' : ''}"></span>
+            <div class="mini-main"><div class="mini-t">${i.t}</div><div class="mini-meta">${esc(i.m)}</div></div>
+          </div>`).join('')}</div>`
+          : `<div class="stat-sub">Nichts für heute. Freier Kopf. ✓</div>`}
+      </div>
+
+      <div class="card">
+        <div class="card-head">${icon('chevron')}<span class="card-title">Als Nächstes</span></div>
+        ${upcoming.length ? `<div class="mini-list">${upcoming.map((u) => {
+          const meta = dueMeta(u.date);
+          return `<div class="mini-row click" data-act="${u.act}">
+            <div class="mini-main"><div class="mini-t">${esc(u.title)}</div><div class="mini-meta">${esc(u.kind)}${u.sub && u.sub !== '—' ? ' · ' + esc(u.sub) : ''}</div></div>
+            <span class="due ${meta.cls}">${esc(relDayName(u.date))}</span>
+          </div>`;
+        }).join('')}</div>` : `<div class="stat-sub">Keine anstehenden Ereignisse.</div>`}
+      </div>
+
+      <div class="card interactive" data-act="goto:tasks">
+        <div class="card-head">${icon('tasks')}<span class="card-title">Offene Aufgaben ${overdue ? `<span style="color:var(--danger)">· ${overdue} überfällig</span>` : ''}</span></div>
+        <div class="stat">${openTasks.length}</div>
+        <div class="stat-sub">${nextTasks.length ? 'Nächste: ' + esc(nextTasks[0].title) : 'Alles erledigt'}</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">${icon('clipboard')}<span class="card-title">Klausuren</span></div>
+        ${nextExams.length ? `<div class="mini-list">${nextExams.map((e) => `
+          <div class="mini-row click" data-act="openExam:${e.id}">
+            <div class="mini-main"><div class="mini-t">${esc(e.title)}</div><div class="mini-meta">${esc(subjectName(e.subjectId))}</div></div>
+            <span class="due ${dueMeta(e.date).cls}">${esc(relDayName(e.date))}</span>
+          </div>`).join('')}</div>` : `<div class="stat-sub">Keine Klausuren geplant.</div>`}
+      </div>
+
+      <div class="card">
+        <div class="card-head">${icon('calendar')}<span class="card-title">Termine</span></div>
+        ${nextAppts.length ? `<div class="mini-list">${nextAppts.map((a) => `
+          <div class="mini-row click" data-act="openAppt:${a.id}">
+            <div class="mini-main"><div class="mini-t">${esc(a.title)}</div><div class="mini-meta">${a.time ? esc(a.time) + ' Uhr' : 'ganztägig'}</div></div>
+            <span class="due ${dueMeta(a.date).cls}">${esc(relDayName(a.date))}</span>
+          </div>`).join('')}</div>` : `<div class="stat-sub">Keine Termine.</div>`}
+      </div>
+
+      <div class="card interactive" data-act="goto:grades">
+        <div class="card-head">${icon('award')}<span class="card-title">Noten · Gesamtschnitt</span></div>
+        <div class="stat">${fmtAvg(overall)}<span style="font-size:16px;color:var(--text-3);font-weight:500"> / 15</span></div>
+        <div class="stat-sub">${state.subjects.filter((s) => subjectAverage(s.id) !== null).length} Fächer bewertet</div>
+      </div>
+
+      <div class="card interactive" data-act="goto:internship">
+        <div class="card-head">${icon('briefcase')}<span class="card-title">Praktikum</span></div>
+        ${lastIntern ? `<div class="mini-t" style="font-size:14.5px">${esc(fmtLong.format(parseISO(lastIntern.date)))}</div>
+          <div class="stat-sub" style="margin-top:4px">${esc(lastIntern.report ? lastIntern.report.slice(0, 60) : 'Ohne Bericht')}</div>`
+          : `<div class="stat-sub">Noch kein Eintrag.</div>`}
+      </div>
+
+      <div class="card interactive" data-act="gallery">
+        <div class="card-head">${icon('image')}<span class="card-title">Bilder & Speicher</span></div>
+        <div class="stat">${state.images.length}</div>
+        <div class="stat-sub">${imgTotal ? '≈ ' + bytesToStr(imgTotal) + ' lokal' : 'Keine Bilder gespeichert'}</div>
+      </div>
+
+    </div>`;
+}
+
+/* --- Aufgaben --- */
+function renderTasks() {
+  const sorted = [...state.tasks].sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+    if (a.dueDate) return -1;
+    if (b.dueDate) return 1;
+    return b.createdAt - a.createdAt;
+  });
+  const open = sorted.filter((t) => !t.done);
+  const done = sorted.filter((t) => t.done);
+
+  $('#view').innerHTML = `
+    <div class="page-head">
+      <div><div class="page-title">Aufgaben</div><div class="page-sub">${open.length} offen · ${done.length} erledigt</div></div>
+      <button class="btn primary" data-act="newTask">${icon('plus')} Aufgabe</button>
+    </div>
+    ${open.length ? `<div class="rows">${open.map(taskRow).join('')}</div>` : emptyBlock('Keine offenen Aufgaben.', 'Tippe oben rechts auf „Aufgabe“.')}
+    ${done.length ? `<div class="section-label">Erledigt</div><div class="rows">${done.map(taskRow).join('')}</div>` : ''}`;
+}
+function taskRow(t) {
+  const meta = t.done ? { cls: '', label: '' } : dueMeta(t.dueDate, t.dueTime);
+  const imgs = imagesFor('task', t.id).length;
+  return `<div class="row ${meta.cls === 'over' ? 'overdue' : ''}">
+    <button class="check ${t.done ? 'on' : ''}" data-act="toggleTask:${t.id}" aria-label="Erledigt umschalten">${icon('check')}</button>
+    <div class="row-main" data-act="openTask:${t.id}">
+      <div class="row-title ${t.done ? 'done' : ''}">${esc(t.title)}</div>
+      <div class="row-meta">
+        ${t.subjectId ? `<span>${esc(subjectName(t.subjectId))}</span>` : ''}
+        ${t.description ? `<span>· ${esc(t.description.slice(0, 60))}</span>` : ''}
+      </div>
+    </div>
+    <div class="row-end" data-act="openTask:${t.id}">
+      ${imgs ? `<span class="thumb-count">${icon('image')}${imgs}</span>` : ''}
+      ${!t.done && t.dueDate ? `<span class="due ${meta.cls}">${esc(meta.label)}</span>` : ''}
+    </div>
+  </div>`;
+}
+
+/* --- Kalender --- */
+function renderCalendar() {
+  const days = [];
+  for (let i = 0; i < 21; i++) {
+    const d = new Date(startOfToday()); d.setDate(d.getDate() + i);
+    const iso = dateToISO(d);
+    const events = [];
+    state.tasks.filter((t) => !t.done && t.dueDate === iso).forEach((t) => events.push({ type: 'task', time: t.dueTime || '', title: t.title, sub: t.subjectId ? subjectName(t.subjectId) : 'Aufgabe / Abgabe', act: `openTask:${t.id}` }));
+    state.exams.filter((e) => e.date === iso).forEach((e) => events.push({ type: 'exam', time: e.time || '', title: e.title, sub: 'Klausur · ' + subjectName(e.subjectId), act: `openExam:${e.id}` }));
+    state.appointments.filter((a) => a.date === iso).forEach((a) => events.push({ type: 'appt', time: a.time || '', title: a.title, sub: 'Termin', act: `openAppt:${a.id}` }));
+    state.internship.filter((n) => n.date === iso).forEach((n) => events.push({ type: 'intern', time: '', title: 'Praktikum', sub: n.report ? n.report.slice(0, 50) : 'Tagesbericht', act: `openIntern:${n.id}` }));
+    events.sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
+    if (events.length || i <= 1) days.push({ iso, d, events });
+  }
+  const hasAny = days.some((x) => x.events.length);
+
+  $('#view').innerHTML = `
+    <div class="page-head">
+      <div><div class="page-title">Kalender</div><div class="page-sub">Nächste Tage im Überblick</div></div>
+      <button class="btn primary" data-act="newAppt">${icon('plus')} Termin</button>
+    </div>
+    ${hasAny || days.length ? days.map((day) => `
+      <div class="cal-day ${daysUntil(day.iso) === 0 ? 'is-today' : ''}">
+        <div class="cal-day-head">
+          <span class="cal-day-name">${esc(relDayName(day.iso))}</span>
+          <span class="cal-day-date">${esc(fmtLong.format(day.d))}</span>
+        </div>
+        ${day.events.length ? day.events.map((e) => `
+          <div class="cal-event mini-row click" data-act="${e.act}">
+            <span class="cal-time">${esc(e.time || '–')}</span>
+            <span class="cal-bar ${e.type}"></span>
+            <div class="cal-ev-main"><div class="cal-ev-title">${esc(e.title)}</div><div class="cal-ev-sub">${esc(e.sub)}</div></div>
+          </div>`).join('') : `<div class="cal-ev-sub" style="padding:4px 4px 8px">Nichts geplant.</div>`}
+      </div>`).join('') : emptyBlock('Keine Einträge in den nächsten Tagen.')}`;
+}
+
+/* --- Klausuren --- */
+function renderExams() {
+  const sorted = [...state.exams].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const upcoming = sorted.filter((e) => e.date && daysUntil(e.date) >= 0).sort((a, b) => a.date.localeCompare(b.date));
+  const past = sorted.filter((e) => !e.date || daysUntil(e.date) < 0);
+
+  $('#view').innerHTML = `
+    <div class="page-head">
+      <div><div class="page-title">Klausuren</div><div class="page-sub">${upcoming.length} anstehend</div></div>
+      <button class="btn primary" data-act="newExam">${icon('plus')} Klausur</button>
+    </div>
+    ${upcoming.length ? `<div class="rows">${upcoming.map(examRow).join('')}</div>` : emptyBlock('Keine anstehenden Klausuren.')}
+    ${past.length ? `<div class="section-label">Vergangen</div><div class="rows">${past.map(examRow).join('')}</div>` : ''}`;
+}
+function examRow(e) {
+  const meta = e.date ? dueMeta(e.date, e.time) : { cls: '', label: '' };
+  const imgs = imagesFor('exam', e.id).length;
+  const past = e.date && daysUntil(e.date) < 0;
+  return `<div class="row" data-act="openExam:${e.id}">
+    <span class="cal-bar exam" style="width:4px;height:34px;border-radius:3px"></span>
+    <div class="row-main">
+      <div class="row-title">${esc(e.title)} · ${esc(subjectName(e.subjectId))}</div>
+      <div class="row-meta">${e.date ? esc(fmtLong.format(parseISO(e.date))) : 'ohne Datum'}${e.time ? ' · ' + esc(e.time) : ''}</div>
+    </div>
+    <div class="row-end">
+      ${imgs ? `<span class="thumb-count">${icon('image')}${imgs}</span>` : ''}
+      ${e.points != null ? `<span class="grade-avg-badge" style="font-size:14px">${e.points} P</span>` : (past ? '' : `<span class="due ${meta.cls}">${esc(relDayName(e.date))}</span>`)}
+    </div>
+  </div>`;
+}
+
+/* --- Noten --- */
+function renderGrades() {
+  const overall = overallAverage();
+  const rated = state.subjects.filter((s) => subjectAverage(s.id) !== null).length;
+
+  $('#view').innerHTML = `
+    <div class="page-head">
+      <div><div class="page-title">Noten</div><div class="page-sub">FOS-Punktesystem · 0–15</div></div>
+      <button class="btn primary" data-act="newGrade">${icon('plus')} Note</button>
+    </div>
+    <div class="overall-card">
+      <div class="big">${fmtAvg(overall)}</div>
+      <div class="lbl"><b>Gesamtdurchschnitt</b>${rated} von ${state.subjects.length} Fächern bewertet</div>
+    </div>
+    ${state.subjects.length ? state.subjects.map(gradeSubjectBlock).join('') : emptyBlock('Noch keine Fächer.', 'Lege zuerst unter „Fächer“ ein Fach an.')}`;
+}
+function gradeSubjectBlock(s) {
+  const grades = state.grades.filter((g) => g.subjectId === s.id).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const avg = subjectAverage(s.id);
+  return `<div class="grade-subject">
+    <div class="grade-subject-head">
+      ${icon('book')}
+      <div><div class="mini-t" style="font-size:15px">${esc(s.name)}</div><div class="stat-sub">${grades.length} Note${grades.length === 1 ? '' : 'n'}</div></div>
+      <span class="grade-avg-badge">${avg === null ? '–' : fmtAvg(avg)}</span>
+    </div>
+    ${grades.length ? `<div class="grade-chips">${grades.map((g) => `
+      <span class="grade-chip">
+        <b class="pts">${g.points}</b>
+        ${g.label ? `<span class="lbl">${esc(g.label)}</span>` : ''}
+        <button class="x" data-act="editGrade:${g.id}" aria-label="Bearbeiten">${icon('pencil')}</button>
+      </span>`).join('')}
+      <button class="btn sm ghost" data-act="newGradeFor:${s.id}">${icon('plus')} Note</button>
+      </div>`
+      : `<button class="btn sm ghost" data-act="newGradeFor:${s.id}">${icon('plus')} Erste Note hinzufügen</button>`}
+  </div>`;
+}
+
+/* --- Praktikum --- */
+function renderInternship() {
+  const sorted = [...state.internship].sort((a, b) => b.date.localeCompare(a.date));
+  $('#view').innerHTML = `
+    <div class="page-head">
+      <div><div class="page-title">Praktikum</div><div class="page-sub">${sorted.length} dokumentierte Tage</div></div>
+      <button class="btn primary" data-act="newIntern">${icon('plus')} Praktikumstag</button>
+    </div>
+    ${sorted.length ? sorted.map(internCard).join('') : emptyBlock('Noch kein Praktikumstag dokumentiert.')}`;
+}
+function internCard(n) {
+  const imgs = imagesFor('internship', n.id);
+  return `<div class="grade-subject" data-act="openIntern:${n.id}" style="cursor:pointer">
+    <div class="grade-subject-head">
+      ${icon('briefcase')}
+      <div><div class="mini-t" style="font-size:15px">${esc(relDayName(n.date))} · ${esc(fmtLong.format(parseISO(n.date)))}</div>
+      ${n.note ? `<div class="stat-sub">${esc(n.note)}</div>` : ''}</div>
+      ${imgs.length ? `<span class="thumb-count" style="margin-left:auto">${icon('image')}${imgs.length}</span>` : ''}
+    </div>
+    ${n.report ? `<p style="color:var(--text-2);font-size:14px;line-height:1.5;margin-bottom:${imgs.length ? '12px' : '0'}">${esc(n.report)}</p>` : ''}
+    ${imgs.length ? `<div class="img-grid">${imgs.map((im) => `<div class="img-cell" data-act="lightbox:${im.id}"><img src="${thumbUrl(im)}" alt="" loading="lazy"></div>`).join('')}</div>` : ''}
+  </div>`;
+}
+
+/* --- Fächer --- */
+function renderSubjects() {
+  $('#view').innerHTML = `
+    <div class="page-head">
+      <div><div class="page-title">Fächer</div><div class="page-sub">Verbinden Aufgaben, Klausuren und Noten</div></div>
+      <button class="btn primary" data-act="newSubject">${icon('plus')} Fach hinzufügen</button>
+    </div>
+    ${state.subjects.length ? `<div class="grid">${state.subjects.map(subjectCard).join('')}</div>` : emptyBlock('Noch keine Fächer.')}`;
+}
+function subjectCard(s) {
+  const tasks = state.tasks.filter((t) => t.subjectId === s.id && !t.done).length;
+  const exams = state.exams.filter((e) => e.subjectId === s.id).length;
+  const avg = subjectAverage(s.id);
+  return `<div class="card">
+    <div class="card-head">${icon('book')}<span class="card-title">${esc(s.name)}</span>
+      <button class="icon-btn" style="margin-left:auto;width:30px;height:30px" data-act="editSubject:${s.id}" aria-label="Bearbeiten">${icon('pencil')}</button>
+    </div>
+    <div class="row-meta" style="gap:14px">
+      <span>${tasks} Aufgabe${tasks === 1 ? '' : 'n'}</span>
+      <span>${exams} Klausur${exams === 1 ? '' : 'en'}</span>
+      <span>Ø ${avg === null ? '–' : fmtAvg(avg)}</span>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button class="btn sm ghost" data-act="newGradeFor:${s.id}">${icon('plus')} Note</button>
+      <button class="btn sm ghost danger" data-act="delSubject:${s.id}">${icon('trash')} Löschen</button>
+    </div>
+  </div>`;
+}
+
+/* --- Galerie (alle Bilder) --- */
+function openGallery() {
+  const m = openModal({ title: 'Bilder', wide: true });
+  const total = state.images.reduce((s, i) => s + (i.size || 0), 0);
+  function paint() {
+    const imgs = [...state.images].sort((a, b) => b.createdAt - a.createdAt);
+    m.body.innerHTML = imgs.length ? `
+      <div class="stat-sub" style="margin-bottom:12px">${imgs.length} Bilder · ≈ ${bytesToStr(total)} lokal gespeichert</div>
+      <div class="img-grid" style="grid-template-columns:repeat(auto-fill,minmax(110px,1fr))">
+        ${imgs.map((im) => `<div class="img-cell" data-open="${im.id}">
+          <img src="${thumbUrl(im)}" alt="" loading="lazy">
+          <button class="rm" data-del="${im.id}" aria-label="Löschen">${icon('trash')}</button>
+        </div>`).join('')}
+      </div>` : emptyBlock('Keine Bilder gespeichert.', 'Bilder hängst du an Aufgaben, Klausuren oder Praktikumstagen an.');
+  }
+  m.foot.innerHTML = `<button class="btn ghost" data-close>Schließen</button>`;
+  m.body.addEventListener('click', async (e) => {
+    const del = e.target.closest('[data-del]');
+    if (del) {
+      e.stopPropagation();
+      if (await confirmDialog('Dieses Bild löschen?')) {
+        const id = del.dataset.del;
+        if (objUrls.has(id)) { URL.revokeObjectURL(objUrls.get(id)); objUrls.delete(id); }
+        await dbDel('images', id); await reload('images');
+        paint(); updateStorageMini(); toast('Bild gelöscht');
+      }
+      return;
+    }
+    const op = e.target.closest('[data-open]');
+    if (op) { const im = state.images.find((x) => x.id === op.dataset.open); if (im) openLightbox(im); }
+  });
+  paint();
+}
+
+/* -------------------------------------------------------------------------
+   11 · Router / Render
+   ------------------------------------------------------------------------- */
+const VIEWS = {
+  dashboard: renderDashboard, tasks: renderTasks, calendar: renderCalendar,
+  exams: renderExams, grades: renderGrades, internship: renderInternship, subjects: renderSubjects,
+};
+const NAV = [
+  { id: 'dashboard', label: 'Dashboard', icon: 'grid' },
+  { id: 'tasks', label: 'Aufgaben', icon: 'tasks' },
+  { id: 'calendar', label: 'Kalender', icon: 'calendar' },
+  { id: 'exams', label: 'Klausuren', icon: 'clipboard' },
+  { id: 'grades', label: 'Noten', icon: 'award' },
+  { id: 'internship', label: 'Praktikum', icon: 'briefcase' },
+  { id: 'subjects', label: 'Fächer', icon: 'book' },
+];
+
+function renderNav() {
+  const openTasks = state.tasks.filter((t) => !t.done && t.dueDate && daysUntil(t.dueDate) <= 2).length;
+  $('#nav').innerHTML = NAV.map((n) => `
+    <button class="nav-item ${state.view === n.id ? 'active' : ''}" data-nav="${n.id}">
+      ${icon(n.icon)} <span>${n.label}</span>
+      ${n.id === 'tasks' && openTasks ? `<span class="nav-badge">${openTasks}</span>` : ''}
+    </button>`).join('');
+}
+function render() {
+  renderNav();
+  (VIEWS[state.view] || renderDashboard)();
+  updateStorageMini();
+}
+function navigate(view) {
+  state.view = view;
+  if (location.hash !== '#' + view) history.replaceState(null, '', '#' + view);
+  closeMenu();
+  render();
+  $('#view').scrollTop = 0;
+  window.scrollTo(0, 0);
+}
+
+function updateStorageMini() {
+  const total = state.images.reduce((s, i) => s + (i.size || 0), 0);
+  $('#storageMini').textContent = state.images.length
+    ? `${state.images.length} Bilder · ≈ ${bytesToStr(total)}`
+    : 'Lokal gespeichert · kein Cloud';
+}
+
+/* -------------------------------------------------------------------------
+   12 · Aktionen (Event-Delegation)
+   ------------------------------------------------------------------------- */
+function byId(store, id) { return state[store].find((x) => x.id === id); }
+
+async function handleAction(act) {
+  const [cmd, arg] = act.split(':');
+  switch (cmd) {
+    case 'newTask': return openTaskForm();
+    case 'newExam': return openExamForm();
+    case 'newGrade': return openGradeForm();
+    case 'newAppt': return openAppointmentForm();
+    case 'newIntern': return openInternshipForm();
+    case 'newSubject': return openSubjectForm();
+    case 'newGradeFor': return openGradeForm(null, arg);
+    case 'goto': return navigate(arg);
+    case 'gallery': return openGallery();
+    case 'openTask': return openTaskForm(byId('tasks', arg));
+    case 'openExam': return openExamForm(byId('exams', arg));
+    case 'openAppt': return openAppointmentForm(byId('appointments', arg));
+    case 'openIntern': return openInternshipForm(byId('internship', arg));
+    case 'editGrade': return openGradeForm(byId('grades', arg));
+    case 'editSubject': return openSubjectForm(byId('subjects', arg));
+    case 'lightbox': { const im = byId('images', arg); if (im) openLightbox(im); return; }
+    case 'toggleTask': {
+      const t = byId('tasks', arg);
+      if (t) { t.done = !t.done; await dbPut('tasks', t); await reload('tasks'); render(); }
+      return;
+    }
+    case 'delSubject': {
+      const s = byId('subjects', arg);
+      if (!s) return;
+      if (await confirmDialog(`„${s.name}“ löschen? Zugehörige Noten werden entfernt; Aufgaben/Klausuren verlieren die Fach-Zuordnung.`)) {
+        for (const g of state.grades.filter((x) => x.subjectId === s.id)) await dbDel('grades', g.id);
+        for (const t of state.tasks.filter((x) => x.subjectId === s.id)) { t.subjectId = null; await dbPut('tasks', t); }
+        for (const e of state.exams.filter((x) => x.subjectId === s.id)) { e.subjectId = null; await dbPut('exams', e); }
+        await dbDel('subjects', s.id);
+        await Promise.all([reload('subjects'), reload('grades'), reload('tasks'), reload('exams')]);
+        render(); toast('Fach gelöscht');
+      }
+      return;
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------
+   13 · Suche
+   ------------------------------------------------------------------------- */
+function runSearch(q) {
+  q = q.trim().toLowerCase();
+  const panelId = 'searchPanel';
+  let panel = $('#' + panelId);
+  if (!q) { if (panel) panel.remove(); return; }
+  const has = (s) => (s || '').toLowerCase().includes(q);
+
+  const res = {
+    Aufgaben: state.tasks.filter((t) => has(t.title) || has(t.description) || has(t.note) || has(subjectName(t.subjectId))).slice(0, 6)
+      .map((t) => ({ icon: 'tasks', t: t.title, m: (t.subjectId ? subjectName(t.subjectId) + ' · ' : '') + (t.dueDate ? fmtShort(t.dueDate) : ''), act: `openTask:${t.id}` })),
+    Klausuren: state.exams.filter((e) => has(e.title) || has(e.note) || has(subjectName(e.subjectId))).slice(0, 6)
+      .map((e) => ({ icon: 'clipboard', t: `${e.title} · ${subjectName(e.subjectId)}`, m: e.date ? fmtLong.format(parseISO(e.date)) : '', act: `openExam:${e.id}` })),
+    Fächer: state.subjects.filter((s) => has(s.name)).slice(0, 6)
+      .map((s) => ({ icon: 'book', t: s.name, m: `Ø ${fmtAvg(subjectAverage(s.id))}`, act: `goto:grades` })),
+    Termine: state.appointments.filter((a) => has(a.title) || has(a.note)).slice(0, 5)
+      .map((a) => ({ icon: 'calendar', t: a.title, m: a.date ? relDayName(a.date) : '', act: `openAppt:${a.id}` })),
+    Praktikum: state.internship.filter((n) => has(n.report) || has(n.note) || has(relDayName(n.date))).slice(0, 5)
+      .map((n) => ({ icon: 'briefcase', t: `Praktikum · ${fmtShort(n.date)}`, m: n.report ? n.report.slice(0, 40) : '', act: `openIntern:${n.id}` })),
+    Bilder: state.images.filter((im) => has(im.title) || has(im.category) || has(subjectName(im.subjectId))).slice(0, 6)
+      .map((im) => ({ icon: 'image', t: im.title || im.category, m: `${im.category}${im.subjectId ? ' · ' + subjectName(im.subjectId) : ''}`, act: `lightbox:${im.id}` })),
+  };
+
+  const groups = Object.entries(res).filter(([, arr]) => arr.length);
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = panelId; panel.className = 'search-panel';
+    $('#searchWrap').appendChild(panel);
+  }
+  panel.innerHTML = groups.length ? groups.map(([label, arr]) => `
+    <div class="search-group-label">${label}</div>
+    ${arr.map((r) => `<button class="search-res" data-act="${r.act}" data-searchres>
+      ${icon(r.icon)}<div><div class="r-t">${esc(r.t)}</div>${r.m ? `<div class="r-m">${esc(r.m)}</div>` : ''}</div>
+    </button>`).join('')}`).join('') : `<div class="search-empty">Nichts gefunden für „${esc(q)}“.</div>`;
+}
+function closeSearch() { const p = $('#searchPanel'); if (p) p.remove(); $('#searchInput').value = ''; }
+
+/* -------------------------------------------------------------------------
+   14 · Menü / Theme
+   ------------------------------------------------------------------------- */
+function closeMenu() { $('#app').classList.remove('menu-open'); }
+function toggleMenu() { $('#app').classList.toggle('menu-open'); }
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('fos_theme', theme);
+  $('#btnTheme').innerHTML = icon(theme === 'dark' ? 'sun' : 'moon');
+  const tc = document.querySelector('meta[name="theme-color"]:not([media])');
+  if (tc) tc.setAttribute('content', theme === 'dark' ? '#131315' : '#f5f5f7');
+}
+function initTheme() {
+  let theme = localStorage.getItem('fos_theme');
+  if (!theme) theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  applyTheme(theme);
+}
+
+/* -------------------------------------------------------------------------
+   15 · Init
+   ------------------------------------------------------------------------- */
+async function seedIfEmpty() {
+  if (state.subjects.length === 0) {
+    for (const name of ['Deutsch', 'Englisch', 'Mathe']) {
+      await dbPut('subjects', { id: uid(), name, createdAt: Date.now() });
+    }
+    await reload('subjects');
+  }
+}
+
+function bindGlobalEvents() {
+  // Aktionen im Hauptbereich + Sidebar-Foot
+  document.body.addEventListener('click', (e) => {
+    const nav = e.target.closest('[data-nav]');
+    if (nav) { navigate(nav.dataset.nav); return; }
+    const searchRes = e.target.closest('[data-searchres]');
+    if (searchRes) { const act = searchRes.dataset.act; closeSearch(); handleAction(act); return; }
+    // Aktionen außerhalb von Modals (Modals verdrahten ihre Buttons direkt);
+    // Suchergebnisse wurden oben bereits behandelt.
+    const actEl = e.target.closest('[data-act]');
+    if (actEl && !actEl.closest('.modal')) { e.preventDefault(); handleAction(actEl.dataset.act); return; }
+  });
+
+  $('#btnMenu').addEventListener('click', toggleMenu);
+  $('#overlay').addEventListener('click', closeMenu);
+  $('#btnTheme').addEventListener('click', () => {
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+
+  const si = $('#searchInput');
+  let searchT;
+  si.addEventListener('input', () => { clearTimeout(searchT); searchT = setTimeout(() => runSearch(si.value), 120); });
+  si.addEventListener('focus', () => { if (si.value) runSearch(si.value); });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#searchWrap')) { const p = $('#searchPanel'); if (p) p.remove(); }
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const lb = $('.lightbox'); if (lb) { lb.click(); return; }
+      const mb = $('.modal-backdrop'); if (mb) { mb.click(); return; }
+      closeMenu(); closeSearch();
+    }
+  });
+
+  window.addEventListener('hashchange', () => {
+    const v = location.hash.replace('#', '');
+    if (VIEWS[v] && v !== state.view) { state.view = v; render(); }
+  });
+}
+
+async function init() {
+  initTheme();
+  $('#headDate').textContent = fmtHeader.format(new Date());
+  try {
+    await openDB();
+    await loadAll();
+    await seedIfEmpty();
+  } catch (err) {
+    $('#view').innerHTML = emptyBlock('Speicher konnte nicht geöffnet werden.', 'Bitte im Browser den privaten Modus deaktivieren und neu laden.');
+    console.error(err);
+    return;
+  }
+  const startView = location.hash.replace('#', '');
+  if (VIEWS[startView]) state.view = startView;
+  bindGlobalEvents();
+  render();
+}
+
+document.addEventListener('DOMContentLoaded', init);
