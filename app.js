@@ -33,6 +33,11 @@ const ICONS = {
   upload:    '<path d="M12 15.5V3.5"/><polyline points="7.5 8 12 3.5 16.5 8"/><path d="M5 20.5h14"/>',
   chevron:   '<polyline points="9 5 16 12 9 19"/>',
   camera:    '<path d="M4 8.5a2 2 0 0 1 2-2h1.5l1.3-2h6.4l1.3 2H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/>',
+  settings:  '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-1 1.47V21a2 2 0 0 1-4 0v-.11a1.6 1.6 0 0 0-1.05-1.47 1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.6 1.6 0 0 0 4.7 15a1.6 1.6 0 0 0-1.47-1H3a2 2 0 0 1 0-4h.11A1.6 1.6 0 0 0 4.6 8.9a1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.6 1.6 0 0 0 1.77.32H9a1.6 1.6 0 0 0 1-1.47V3a2 2 0 0 1 4 0v.11a1.6 1.6 0 0 0 1 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.6 1.6 0 0 0-.32 1.77V9a1.6 1.6 0 0 0 1.47 1H21a2 2 0 0 1 0 4h-.11a1.6 1.6 0 0 0-1.47 1z"/>',
+  phone:     '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/>',
+  mail:      '<rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="m3 6.5 9 6 9-6"/>',
+  pin:       '<path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+  user:      '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="8" r="4"/>',
 };
 function icon(name, cls = 'ico') {
   return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`;
@@ -57,6 +62,15 @@ function daysUntil(iso) { return Math.round((parseISO(iso) - startOfToday()) / 8
 const fmtHeader = new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
 const fmtWeekday = new Intl.DateTimeFormat('de-DE', { weekday: 'long' });
 const fmtLong = new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long', year: 'numeric' });
+const fmtMonthShort = new Intl.DateTimeFormat('de-DE', { month: 'short' });
+
+function greetWord() {
+  const h = new Date().getHours();
+  if (h < 5) return 'Gute Nacht';
+  if (h < 11) return 'Guten Morgen';
+  if (h < 18) return 'Guten Tag';
+  return 'Guten Abend';
+}
 
 function fmtShort(iso) { const d = parseISO(iso); return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.`; }
 function relDayName(iso) {
@@ -179,12 +193,19 @@ const state = {
   subjects: [], tasks: [], exams: [], grades: [], appointments: [],
   internshipSites: [], internship: [], images: [],
 };
-const objUrls = new Map(); // id -> objectURL (Vorschauen)
+const objUrls = new Map(); // id -> objectURL (Vorschauen/Thumbnails)
+const fullUrls = new Map(); // id -> objectURL (Vollbild, z. B. Hero)
 
 function thumbUrl(imgRec) {
   if (objUrls.has(imgRec.id)) return objUrls.get(imgRec.id);
   const u = URL.createObjectURL(imgRec.thumb || imgRec.blob);
   objUrls.set(imgRec.id, u);
+  return u;
+}
+function fullUrl(imgRec) {
+  if (fullUrls.has(imgRec.id)) return fullUrls.get(imgRec.id);
+  const u = URL.createObjectURL(imgRec.blob);
+  fullUrls.set(imgRec.id, u);
   return u;
 }
 async function loadAll() {
@@ -622,8 +643,9 @@ function openInternshipForm(existing, presetSiteId) {
       <div class="field"><label>Beginn <span class="hint">optional</span></label><input class="input" type="time" data-f="start" value="${esc(t.start || '')}"></div>
       <div class="field"><label>Ende <span class="hint">optional</span></label><input class="input" type="time" data-f="end" value="${esc(t.end || '')}"></div>
     </div>
-    <div class="field"><label>Tagesbericht</label><textarea class="textarea" data-f="report" style="min-height:110px" placeholder="Was hast du heute gemacht?">${esc(t.report || '')}</textarea></div>
-    <div class="field"><label>Notizen <span class="hint">optional</span></label><input class="input" data-f="note" value="${esc(t.note || '')}" placeholder="Weitere Infos"></div>
+    <div class="field"><label>Tagesbericht</label><textarea class="textarea" data-f="report" style="min-height:120px" placeholder="Was hast du heute gemacht?">${esc(t.report || '')}</textarea></div>
+    <div class="field"><label>Schnelle Notizen <span class="hint">optional</span></label><textarea class="textarea" data-f="note" placeholder="Kurze Gedanken aus dem Tag – z. B. „Gespräch mit einer Bewohnerin“.">${esc(t.note || '')}</textarea></div>
+    <div class="field"><label>Weitere Informationen <span class="hint">optional</span></label><textarea class="textarea" data-f="info" placeholder="Sonstiges zum Tag">${esc(t.info || '')}</textarea></div>
     <div class="field"><label>Bilder</label><div data-imghost></div></div>`;
   m.foot.innerHTML = `
     ${existing ? `<button class="btn danger" data-del>Löschen</button>` : ''}
@@ -648,7 +670,7 @@ function openInternshipForm(existing, presetSiteId) {
       id, siteId: chosenSite,
       date: g('date').value || todayISO(),
       start: g('start').value || null, end: g('end').value || null,
-      report: g('report').value.trim(), note: g('note').value.trim(),
+      report: g('report').value.trim(), note: g('note').value.trim(), info: g('info').value.trim(),
       createdAt: existing?.createdAt || Date.now(),
     };
     await dbPut('internship', rec);
@@ -797,7 +819,7 @@ function renderDashboard() {
   const view = $('#view');
   view.innerHTML = `
     <div class="page-head">
-      <div><div class="page-title">Übersicht</div><div class="page-sub">${esc(fmtHeader.format(new Date()))}</div></div>
+      <div><div class="page-title">Übersicht</div><div class="page-sub">Alles Wichtige auf einen Blick</div></div>
       <button class="btn primary" data-act="newTask">${icon('plus')} Aufgabe</button>
     </div>
     <div class="grid">
@@ -860,7 +882,7 @@ function renderDashboard() {
           : `<div class="stat-sub">Noch keine Stelle.</div>`}
       </div>
 
-      <div class="card interactive" data-act="gallery">
+      <div class="card interactive" data-act="goto:images">
         <div class="card-head">${icon('image')}<span class="card-title">Bilder & Speicher</span></div>
         <div class="stat">${state.images.length}</div>
         <div class="stat-sub">${imgTotal ? '≈ ' + bytesToStr(imgTotal) + ' lokal' : 'Keine Bilder gespeichert'}</div>
@@ -1031,24 +1053,24 @@ function renderInternship() {
       <div><div class="page-title">Praktikum</div><div class="page-sub">${sites.length} Praktikumsstelle${sites.length === 1 ? '' : 'n'}</div></div>
       <button class="btn primary" data-act="newSite">${icon('plus')} Praktikumsstelle</button>
     </div>
-    ${sites.length ? `<div class="grid">${sites.map(siteCard).join('')}</div>`
+    ${sites.length ? `<div class="site-list">${sites.map(siteCard).join('')}</div>`
       : emptyBlock('Noch keine Praktikumsstelle.', 'Lege eine Einrichtung an – z. B. Seniorenheim, Kindergarten, Klinik. Danach dokumentierst du dort deine Tage.')}`;
 }
 function siteCard(s) {
   const days = daysForSite(s.id);
   const period = fmtPeriod(s.periodStart, s.periodEnd);
-  const logo = imagesFor('internshipSite', s.id)[0];
-  return `<div class="card interactive" data-act="openSite:${s.id}">
-    <div class="card-head">
-      ${logo ? `<span class="site-logo"><img src="${thumbUrl(logo)}" alt=""></span>` : icon('briefcase')}
-      <span class="card-title">${esc(s.name)}</span>
+  const img = imagesFor('internshipSite', s.id)[0];
+  return `<div class="site-card" data-act="openSite:${s.id}">
+    <div class="site-card-thumb">${img ? `<img src="${thumbUrl(img)}" alt="">` : icon('briefcase')}</div>
+    <div class="site-card-main">
+      <div class="site-card-name">${esc(s.name)}</div>
+      ${s.kind ? `<div class="site-card-kind">${esc(s.kind)}</div>` : ''}
+      <div class="site-card-meta">
+        ${period ? `<span>${esc(period)}</span>` : ''}
+        <span>${days.length} Praktikumstag${days.length === 1 ? '' : 'e'}</span>
+      </div>
     </div>
-    ${s.kind ? `<div class="stat-sub" style="margin-top:-2px">${esc(s.kind)}</div>` : ''}
-    <div class="row-meta" style="gap:14px;margin-top:10px">
-      <span>${days.length} Tag${days.length === 1 ? '' : 'e'}</span>
-      ${period ? `<span>${esc(period)}</span>` : ''}
-    </div>
-    ${s.address ? `<div class="stat-sub" style="margin-top:8px">${esc(s.address)}</div>` : ''}
+    <span class="day-chev">${icon('chevron')}</span>
   </div>`;
 }
 function fmtPeriod(a, b) {
@@ -1058,51 +1080,59 @@ function fmtPeriod(a, b) {
   return '';
 }
 function renderInternshipSite(site) {
-  const days = daysForSite(site.id).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  const contactBits = [
-    site.contact ? esc(site.contact) : '',
-    site.phone ? `<a href="tel:${esc(site.phone)}">${esc(site.phone)}</a>` : '',
-    site.email ? `<a href="mailto:${esc(site.email)}">${esc(site.email)}</a>` : '',
-  ].filter(Boolean);
+  const days = daysForSite(site.id).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const hero = imagesFor('internshipSite', site.id)[0];
   const period = fmtPeriod(site.periodStart, site.periodEnd);
-  const logo = imagesFor('internshipSite', site.id)[0];
+  const meta = [];
+  if (site.address) meta.push(`<div class="site-meta-row">${icon('pin')}<span>${esc(site.address)}</span></div>`);
+  if (site.contact) meta.push(`<div class="site-meta-row">${icon('user')}<span>${esc(site.contact)}</span></div>`);
+  if (site.phone) meta.push(`<div class="site-meta-row">${icon('phone')}<a href="tel:${esc(site.phone)}">${esc(site.phone)}</a></div>`);
+  if (site.email) meta.push(`<div class="site-meta-row">${icon('mail')}<a href="mailto:${esc(site.email)}">${esc(site.email)}</a></div>`);
+  if (period) meta.push(`<div class="site-meta-row">${icon('calendar')}<span>${esc(period)}</span></div>`);
+  if (site.note) meta.push(`<div class="site-meta-row note">${esc(site.note)}</div>`);
 
   $('#view').innerHTML = `
-    <div class="page-head">
-      <div style="display:flex;align-items:center;gap:12px;min-width:0">
-        <button class="btn ghost sm back-btn" data-act="internList" aria-label="Zurück">${icon('chevron')}</button>
-        <div style="min-width:0"><div class="page-title" style="overflow:hidden;text-overflow:ellipsis">${esc(site.name)}</div>
-          <div class="page-sub">${esc(site.kind || 'Praktikumsstelle')}</div></div>
-      </div>
+    <div class="page-head detail-head">
+      <button class="btn ghost sm back-btn" data-act="internList" aria-label="Zurück">${icon('chevron')}</button>
       <button class="btn primary" data-act="newDayFor:${site.id}">${icon('plus')} Praktikumstag</button>
     </div>
 
+    ${hero
+      ? `<div class="site-hero" data-act="lightbox:${hero.id}">
+           <img src="${fullUrl(hero)}" alt="">
+           <div class="site-hero-cap"><h2>${esc(site.name)}</h2>${site.kind ? `<span>${esc(site.kind)}</span>` : ''}</div>
+         </div>`
+      : `<div class="site-headline"><h2>${esc(site.name)}</h2>${site.kind ? `<div class="site-kind">${esc(site.kind)}</div>` : ''}</div>`}
+
     <div class="site-detail">
-      ${logo ? `<div class="site-detail-logo"><img src="${thumbUrl(logo)}" alt="" data-act="lightbox:${logo.id}"></div>` : ''}
-      <div class="site-meta">
-        ${site.address ? `<div class="site-meta-row">${icon('briefcase')}<span>${esc(site.address)}</span></div>` : ''}
-        ${contactBits.length ? `<div class="site-meta-row">${icon('inbox')}<span>${contactBits.join(' · ')}</span></div>` : ''}
-        ${period ? `<div class="site-meta-row">${icon('calendar')}<span>${esc(period)}</span></div>` : ''}
-        ${site.note ? `<div class="site-meta-row note">${esc(site.note)}</div>` : ''}
-      </div>
+      ${meta.length ? `<div class="site-meta">${meta.join('')}</div>` : `<div class="stat-sub">Noch keine Angaben zur Stelle.</div>`}
       <button class="btn ghost sm" data-act="editSite:${site.id}">${icon('pencil')} Stelle bearbeiten</button>
     </div>
 
     <div class="section-label">Praktikumstage · ${days.length}</div>
-    ${days.length ? days.map(siteDayCard).join('') : emptyBlock('Noch kein Tag dokumentiert.', 'Tippe oben rechts auf „Praktikumstag“.')}`;
+    ${days.length ? `<div class="day-list">${days.map(siteDayCard).join('')}</div>` : emptyBlock('Noch kein Tag dokumentiert.', 'Tippe oben rechts auf „Praktikumstag“.')}`;
 }
 function siteDayCard(n) {
   const imgs = imagesFor('internship', n.id);
-  const timespan = (n.start || n.end) ? `${n.start || ''}${n.start && n.end ? ' – ' : ''}${n.end || ''} Uhr` : '';
-  return `<div class="grade-subject day-card" data-act="openIntern:${n.id}" style="cursor:pointer">
-    <div class="grade-subject-head">
-      ${icon('clock')}
-      <div><div class="mini-t" style="font-size:15px">${esc(fmtLong.format(parseISO(n.date)))}</div>
-      <div class="stat-sub">${esc(fmtWeekday.format(parseISO(n.date)))}${timespan ? ' · ' + esc(timespan) : ''}${n.note ? ' · ' + esc(n.note) : ''}</div></div>
-      ${imgs.length ? `<span class="thumb-count" style="margin-left:auto">${icon('image')}${imgs.length}</span>` : ''}
+  const d = parseISO(n.date);
+  const time = (n.start || n.end) ? `${n.start || ''}${n.start && n.end ? ' – ' : ''}${n.end || ''} Uhr` : '';
+  const bits = [];
+  if (n.report) bits.push('Bericht');
+  if (n.note) bits.push('Notizen');
+  if (n.info) bits.push('Infos');
+  if (imgs.length) bits.push(`${imgs.length} Bild${imgs.length === 1 ? '' : 'er'}`);
+  const documented = bits.length > 0;
+  return `<div class="day-row" data-act="openIntern:${n.id}">
+    <div class="day-date">
+      <span class="dd">${d.getDate()}</span>
+      <span class="dm">${esc(fmtMonthShort.format(d).replace('.', ''))}</span>
     </div>
-    ${n.report ? `<p style="color:var(--text-2);font-size:14px;line-height:1.5;margin-bottom:${imgs.length ? '12px' : '0'}">${esc(n.report)}</p>` : ''}
-    ${imgs.length ? `<div class="img-grid">${imgs.map((im) => `<div class="img-cell" data-act="lightbox:${im.id}"><img src="${thumbUrl(im)}" alt="" loading="lazy"></div>`).join('')}</div>` : ''}
+    <div class="day-main">
+      <div class="day-title">${esc(fmtWeekday.format(d))}${time ? ` · ${esc(time)}` : ''}</div>
+      <div class="day-status ${documented ? '' : 'muted'}">${documented ? esc(bits.join(' · ')) : 'Noch nicht dokumentiert'}</div>
+    </div>
+    ${imgs.length ? `<span class="thumb-count">${icon('image')}${imgs.length}</span>` : ''}
+    <span class="day-chev">${icon('chevron')}</span>
   </div>`;
 }
 
@@ -1135,38 +1165,71 @@ function subjectCard(s) {
   </div>`;
 }
 
-/* --- Galerie (alle Bilder) --- */
-function openGallery() {
-  const m = openModal({ title: 'Bilder', wide: true });
+/* --- Bilder (eigene Seite, alle Bilder + Speicher) --- */
+function renderImages() {
+  const imgs = [...state.images].sort((a, b) => b.createdAt - a.createdAt);
   const total = state.images.reduce((s, i) => s + (i.size || 0), 0);
-  function paint() {
-    const imgs = [...state.images].sort((a, b) => b.createdAt - a.createdAt);
-    m.body.innerHTML = imgs.length ? `
-      <div class="stat-sub" style="margin-bottom:12px">${imgs.length} Bilder · ≈ ${bytesToStr(total)} lokal gespeichert</div>
-      <div class="img-grid" style="grid-template-columns:repeat(auto-fill,minmax(110px,1fr))">
-        ${imgs.map((im) => `<div class="img-cell" data-open="${im.id}">
-          <img src="${thumbUrl(im)}" alt="" loading="lazy">
-          <button class="rm" data-del="${im.id}" aria-label="Löschen">${icon('trash')}</button>
-        </div>`).join('')}
-      </div>` : emptyBlock('Keine Bilder gespeichert.', 'Bilder hängst du an Aufgaben, Klausuren oder Praktikumstagen an.');
-  }
-  m.foot.innerHTML = `<button class="btn ghost" data-close>Schließen</button>`;
-  m.body.addEventListener('click', async (e) => {
-    const del = e.target.closest('[data-del]');
-    if (del) {
-      e.stopPropagation();
-      if (await confirmDialog('Dieses Bild löschen?')) {
-        const id = del.dataset.del;
-        if (objUrls.has(id)) { URL.revokeObjectURL(objUrls.get(id)); objUrls.delete(id); }
-        await dbDel('images', id); await reload('images');
-        paint(); updateStorageMini(); toast('Bild gelöscht');
-      }
-      return;
-    }
-    const op = e.target.closest('[data-open]');
-    if (op) { const im = state.images.find((x) => x.id === op.dataset.open); if (im) openLightbox(im); }
-  });
-  paint();
+  $('#view').innerHTML = `
+    <div class="page-head">
+      <div><div class="page-title">Bilder</div>
+        <div class="page-sub">${imgs.length} Bild${imgs.length === 1 ? '' : 'er'} · ≈ ${bytesToStr(total)} lokal gespeichert</div></div>
+    </div>
+    ${imgs.length ? `<div class="img-grid gallery-grid">${imgs.map((im) => `
+      <figure class="img-cell" data-act="lightbox:${im.id}">
+        <img src="${thumbUrl(im)}" alt="" loading="lazy">
+        <button class="rm" data-act="delImage:${im.id}" aria-label="Löschen">${icon('trash')}</button>
+        ${im.title || im.category ? `<figcaption class="img-cap">${esc(im.title || im.category)}</figcaption>` : ''}
+      </figure>`).join('')}</div>`
+      : emptyBlock('Noch keine Bilder gespeichert.', 'Bilder hängst du an Aufgaben, Klausuren oder Praktikumstagen an – sie landen automatisch hier.')}`;
+}
+
+/* --- Einstellungen (lokal) --- */
+function renderSettings() {
+  const name = getName();
+  const theme = document.documentElement.getAttribute('data-theme');
+  const total = state.images.reduce((s, i) => s + (i.size || 0), 0);
+  $('#view').innerHTML = `
+    <div class="page-head">
+      <div><div class="page-title">Einstellungen</div><div class="page-sub">Alles bleibt lokal auf diesem Gerät</div></div>
+    </div>
+    <div class="settings-list">
+      <section class="settings-card">
+        <div class="settings-label">${icon('user')} Vorname</div>
+        <div class="settings-hint">Für die Begrüßung im Header. Wird nur lokal gespeichert – kein Konto, keine Cloud.</div>
+        <input class="input" id="setName" value="${esc(name)}" placeholder="z. B. Samreen" maxlength="40" autocomplete="off">
+      </section>
+
+      <section class="settings-card">
+        <div class="settings-label">${icon('sun')} Darstellung</div>
+        <div class="seg" id="themeSeg">
+          <button class="seg-btn ${theme === 'light' ? 'on' : ''}" data-theme-set="light">${icon('sun')} Hell</button>
+          <button class="seg-btn ${theme === 'dark' ? 'on' : ''}" data-theme-set="dark">${icon('moon')} Dunkel</button>
+        </div>
+      </section>
+
+      <section class="settings-card">
+        <div class="settings-label">${icon('inbox')} Sicherung</div>
+        <div class="settings-hint">Alle Daten inklusive Bilder als Datei sichern oder wiederherstellen. Beim Import wird zusammengeführt – nichts wird gelöscht.</div>
+        <div class="settings-actions">
+          <button class="btn" data-act="exportData">${icon('upload')} Sichern</button>
+          <button class="btn" data-act="importData">${icon('inbox')} Wiederherstellen</button>
+        </div>
+      </section>
+
+      <section class="settings-card">
+        <div class="settings-label">${icon('image')} Speicher</div>
+        <div class="settings-hint">${state.images.length} Bild${state.images.length === 1 ? '' : 'er'} · ≈ ${bytesToStr(total)} · Aufgaben, Noten, Klausuren und Praktikum liegen lokal in IndexedDB.</div>
+      </section>
+    </div>`;
+
+  const inp = $('#setName');
+  const commit = () => setName(inp.value);
+  inp.addEventListener('change', commit);
+  inp.addEventListener('blur', commit);
+  $$('#themeSeg [data-theme-set]').forEach((b) => b.addEventListener('click', () => {
+    applyTheme(b.dataset.themeSet);
+    $$('#themeSeg .seg-btn').forEach((x) => x.classList.toggle('on', x === b));
+  }));
 }
 
 /* -------------------------------------------------------------------------
@@ -1175,6 +1238,7 @@ function openGallery() {
 const VIEWS = {
   dashboard: renderDashboard, tasks: renderTasks, calendar: renderCalendar,
   exams: renderExams, grades: renderGrades, internship: renderInternship, subjects: renderSubjects,
+  images: renderImages, settings: renderSettings,
 };
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: 'grid' },
@@ -1184,6 +1248,8 @@ const NAV = [
   { id: 'grades', label: 'Noten', icon: 'award' },
   { id: 'internship', label: 'Praktikum', icon: 'briefcase' },
   { id: 'subjects', label: 'Fächer', icon: 'book' },
+  { id: 'images', label: 'Bilder', icon: 'image' },
+  { id: 'settings', label: 'Einstellungen', icon: 'settings' },
 ];
 
 function renderNav() {
@@ -1205,6 +1271,7 @@ function navigate(view) {
   if (location.hash !== '#' + view) history.replaceState(null, '', '#' + view);
   closeMenu();
   render();
+  animateView();
   $('#view').scrollTop = 0;
   window.scrollTo(0, 0);
 }
@@ -1216,6 +1283,7 @@ function openSiteDetail(id) {
   if (location.hash !== '#internship') history.replaceState(null, '', '#internship');
   closeMenu();
   render();
+  animateView();
   window.scrollTo(0, 0);
 }
 
@@ -1242,11 +1310,21 @@ async function handleAction(act) {
     case 'newSubject': return openSubjectForm();
     case 'newGradeFor': return openGradeForm(null, arg);
     case 'goto': return navigate(arg);
-    case 'gallery': return openGallery();
+    case 'delImage': {
+      const im = byId('images', arg);
+      if (!im) return;
+      if (await confirmDialog('Dieses Bild löschen?')) {
+        if (objUrls.has(arg)) { URL.revokeObjectURL(objUrls.get(arg)); objUrls.delete(arg); }
+        if (fullUrls.has(arg)) { URL.revokeObjectURL(fullUrls.get(arg)); fullUrls.delete(arg); }
+        await dbDel('images', arg); await reload('images');
+        render(); toast('Bild gelöscht');
+      }
+      return;
+    }
     case 'newSite': return openInternshipSiteForm();
     case 'editSite': return openInternshipSiteForm(byId('internshipSites', arg));
     case 'openSite': return openSiteDetail(arg);
-    case 'internList': { state.internView = null; render(); return; }
+    case 'internList': { state.internView = null; render(); animateView(); return; }
     case 'newDayFor': return openInternshipForm(null, arg);
     case 'exportData': return exportBackup();
     case 'importData': return importBackupPrompt();
@@ -1336,6 +1414,35 @@ function initTheme() {
   let theme = localStorage.getItem('fos_theme');
   if (!theme) theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   applyTheme(theme);
+}
+
+/* Vorname (nur lokal) + Begrüßung im Header */
+function getName() { return (localStorage.getItem('fos_name') || '').trim(); }
+function setName(v) {
+  v = (v || '').trim();
+  if (v) localStorage.setItem('fos_name', v); else localStorage.removeItem('fos_name');
+  updateHeader();
+}
+function updateHeader() {
+  const el = $('#headGreeting');
+  if (el) {
+    const name = getName();
+    const gw = greetWord();
+    el.innerHTML = name
+      ? `<span class="greet-word">${esc(gw)},</span> <span class="greet-name">${esc(name)}</span>`
+      : `<span class="greet-word">${esc(gw)}</span>`;
+  }
+  const d = $('#headDate');
+  if (d) d.textContent = fmtHeader.format(new Date());
+}
+
+/* Dezenter Seitenübergang beim Wechsel (nur bei echtem View-Wechsel, nicht bei jedem Re-Render) */
+function animateView() {
+  const v = $('#view');
+  if (!v) return;
+  v.classList.remove('view-anim');
+  void v.offsetWidth; // Reflow erzwingen, damit die Animation neu startet
+  v.classList.add('view-anim');
 }
 
 /* -------------------------------------------------------------------------
@@ -1510,13 +1617,13 @@ function bindGlobalEvents() {
 
   window.addEventListener('hashchange', () => {
     const v = location.hash.replace('#', '');
-    if (VIEWS[v] && v !== state.view) { state.view = v; render(); }
+    if (VIEWS[v] && v !== state.view) { state.view = v; state.internView = null; render(); animateView(); }
   });
 }
 
 async function init() {
   initTheme();
-  $('#headDate').textContent = fmtHeader.format(new Date());
+  updateHeader();
   try {
     await openDB();
     await loadAll();
@@ -1531,6 +1638,7 @@ async function init() {
   if (VIEWS[startView]) state.view = startView;
   bindGlobalEvents();
   render();
+  animateView();
 }
 
 document.addEventListener('DOMContentLoaded', init);
