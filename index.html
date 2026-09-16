@@ -30,33 +30,28 @@
       <nav class="nav" id="nav"><!-- via JS --></nav>
       <div class="sidebar-foot">
         <div class="storage-mini" id="storageMini">–</div>
-        <div class="foot-actions">
-          <button class="foot-btn" data-act="exportData">Sichern</button>
-          <button class="foot-btn" data-act="importData">Wiederherstellen</button>
-        </div>
       </div>
     </aside>
 
     <!-- Hauptbereich -->
     <div class="main">
       <header class="topbar">
-        <button class="hamburger" id="btnMenu" aria-label="Menü öffnen">
-          <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
-        </button>
         <div class="head-titles">
-          <div class="head-name">Samreen Singh</div>
-          <div class="head-date">
-            <span id="headDate">–</span>
-            <span class="pill-today">Heute</span>
-          </div>
+          <div class="head-greeting" id="headGreeting"><span class="greet-word">Guten Tag</span></div>
+          <div class="head-date"><span id="headDate">–</span></div>
         </div>
 
         <div class="search" id="searchWrap">
           <svg class="s-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="search" id="searchInput" placeholder="Suchen…" autocomplete="off" aria-label="Globale Suche">
+          <input type="search" id="searchInput" placeholder="Suche nach Aufgaben, Klausuren, Fächern …" autocomplete="off" aria-label="Globale Suche">
         </div>
 
-        <button class="icon-btn" id="btnTheme" aria-label="Design wechseln"></button>
+        <div class="head-actions">
+          <button class="icon-btn" id="btnTheme" aria-label="Design wechseln"></button>
+          <button class="hamburger" id="btnMenu" aria-label="Menü öffnen">
+            <svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+          </button>
+        </div>
       </header>
 
       <main class="view" id="view"><!-- via JS --></main>
