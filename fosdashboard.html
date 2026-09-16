@@ -689,6 +689,101 @@ a { color: var(--accent); text-decoration: none; }
 .search-res .r-m { font-size: 12px; color: var(--text-3); }
 .search-empty { padding: 20px; text-align: center; color: var(--text-3); font-size: 13px; }
 
+/* =========================================================================
+   V2 · Datennetzwerk & Praktikum-Hierarchie
+   ========================================================================= */
+
+/* Backup-Aktionen in der Sidebar */
+.foot-actions { display: flex; gap: 6px; margin-top: 10px; }
+.foot-btn {
+  flex: 1;
+  font-size: 11.5px; font-weight: 500;
+  color: var(--text-3);
+  background: transparent;
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  padding: 6px 8px;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease), border 0.15s var(--ease);
+}
+.foot-btn:hover { background: var(--surface-2); color: var(--text-2); border-color: var(--border); }
+
+/* Verknüpfungs-Hinweis (z. B. Note gehört zu Klausur) */
+.link-note {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 12px;
+  padding: 11px 13px;
+  margin-bottom: 16px;
+  font-size: 12.5px; line-height: 1.45;
+  color: var(--text-2);
+}
+.link-note .ico { width: 17px; height: 17px; color: var(--accent); flex: none; margin-top: 1px; }
+
+/* kleiner Text-Button in Formular-Labels (z. B. „zurücksetzen“) */
+.hint-btn {
+  float: right;
+  font-size: 11.5px; font-weight: 500;
+  color: var(--accent);
+  background: transparent; border: none; padding: 0; cursor: pointer;
+}
+.hint-btn:hover { text-decoration: underline; }
+
+/* neutraler Status-Tag (z. B. „nicht bewertet“) – kein Rot/Gelb */
+.tag-muted {
+  font-size: 11.5px; font-weight: 500;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  padding: 3px 9px; border-radius: 20px;
+  white-space: nowrap;
+}
+
+/* Logo in der Stellen-Karte */
+.site-logo {
+  width: 26px; height: 26px; border-radius: 7px; overflow: hidden;
+  flex: none; box-shadow: var(--shadow-sm);
+}
+.site-logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Zurück-Button (Chevron nach links gedreht) */
+.back-btn { width: 36px; padding: 0; justify-content: center; flex: none; }
+.back-btn .ico { transform: rotate(180deg); width: 18px; height: 18px; }
+
+/* Detailkopf einer Praktikumsstelle */
+.site-detail {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 16px 18px;
+  margin-bottom: 4px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.site-detail-logo {
+  width: 100%; max-width: 168px;
+  border-radius: 12px; overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.site-detail-logo img { width: 100%; display: block; cursor: zoom-in; }
+.site-meta { display: flex; flex-direction: column; gap: 9px; }
+.site-meta-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 13.5px; color: var(--text-2); line-height: 1.45;
+}
+.site-meta-row .ico { width: 16px; height: 16px; color: var(--text-3); flex: none; margin-top: 2px; }
+.site-meta-row a { color: var(--accent); text-decoration: none; }
+.site-meta-row a:hover { text-decoration: underline; }
+.site-meta-row.note {
+  color: var(--text-3); font-size: 13px;
+  padding-left: 26px; white-space: pre-wrap;
+}
+.site-detail .btn { align-self: flex-start; }
+
+/* Praktikumstag-Karte (nutzt .grade-subject als Basis) */
+.day-card { cursor: pointer; transition: box-shadow 0.18s var(--ease), border 0.18s var(--ease); }
+.day-card:hover { box-shadow: var(--shadow-md); border-color: var(--border); }
+
 /* ---------- Responsive: Smartphone ---------- */
 .overlay {
   display: none;
@@ -763,6 +858,10 @@ a { color: var(--accent); text-decoration: none; }
       <nav class="nav" id="nav"><!-- via JS --></nav>
       <div class="sidebar-foot">
         <div class="storage-mini" id="storageMini">–</div>
+        <div class="foot-actions">
+          <button class="foot-btn" data-act="exportData">Sichern</button>
+          <button class="foot-btn" data-act="importData">Wiederherstellen</button>
+        </div>
       </div>
     </aside>
 
@@ -796,9 +895,12 @@ a { color: var(--accent); text-decoration: none; }
 
   <script>
 /* =========================================================================
-   FOS Dashboard – app.js
+   FOS Dashboard – app.js  ·  V2
    Vanilla JS · IndexedDB · lokal · offline-fähig
-   Entitäten: subjects, tasks, exams, grades, appointments, internship, images
+   Entitäten: subjects, tasks, exams, grades, appointments,
+              internshipSites, internship (Tage), images
+   V2-Kern: Daten über IDs verbunden (Klausur→Note→Fach→Schnitt),
+            Praktikum als Hierarchie Stelle → Tag → Bericht/Bilder.
    ========================================================================= */
 
 'use strict';
@@ -878,8 +980,10 @@ function dueMeta(iso, time) {
    2 · IndexedDB
    ------------------------------------------------------------------------- */
 const DB_NAME = 'fos_dashboard';
-const DB_VERSION = 1;
-const STORES = ['subjects', 'tasks', 'exams', 'grades', 'appointments', 'internship', 'images'];
+const DB_VERSION = 2;
+/* V2: 'internshipSites' neu. Reihenfolge egal – Laden ist key-basiert.
+   Versions-Bump legt fehlende Stores an, bestehende Daten bleiben erhalten. */
+const STORES = ['subjects', 'tasks', 'exams', 'grades', 'appointments', 'internshipSites', 'internship', 'images'];
 let _db = null;
 
 function openDB() {
@@ -967,7 +1071,9 @@ function bytesToStr(b) {
    ------------------------------------------------------------------------- */
 const state = {
   view: 'dashboard',
-  subjects: [], tasks: [], exams: [], grades: [], appointments: [], internship: [], images: [],
+  internView: null, // { siteId } → Detailansicht einer Praktikumsstelle, sonst Liste
+  subjects: [], tasks: [], exams: [], grades: [], appointments: [],
+  internshipSites: [], internship: [], images: [],
 };
 const objUrls = new Map(); // id -> objectURL (Vorschauen)
 
@@ -978,10 +1084,8 @@ function thumbUrl(imgRec) {
   return u;
 }
 async function loadAll() {
-  const [subjects, tasks, exams, grades, appointments, internship, images] = await Promise.all(
-    STORES.map((s) => dbAll(s))
-  );
-  Object.assign(state, { subjects, tasks, exams, grades, appointments, internship, images });
+  const results = await Promise.all(STORES.map((s) => dbAll(s)));
+  STORES.forEach((s, i) => { state[s] = results[i]; });
   state.subjects.sort((a, b) => a.name.localeCompare(b.name, 'de'));
 }
 async function reload(store) {
@@ -989,7 +1093,30 @@ async function reload(store) {
   if (store === 'subjects') state.subjects.sort((a, b) => a.name.localeCompare(b.name, 'de'));
 }
 function subjectName(id) { const s = state.subjects.find((x) => x.id === id); return s ? s.name : '—'; }
+function siteName(id) { const s = state.internshipSites.find((x) => x.id === id); return s ? s.name : 'Praktikum'; }
+function daysForSite(id) { return state.internship.filter((n) => n.siteId === id); }
 function imagesFor(type, id) { return state.images.filter((im) => im.relatedItemType === type && im.relatedItemId === id); }
+
+/* V2-Datennetzwerk: Klausur ↔ Note.
+   Die Note mit examId ist die einzige Quelle für das Klausurergebnis –
+   dadurch fließt ein Klausurergebnis automatisch in Fach- und Gesamtschnitt. */
+function gradeForExam(examId) { return state.grades.find((g) => g.examId === examId) || null; }
+function examResult(examId) { const g = gradeForExam(examId); return g ? g.points : null; }
+/* Klausurergebnis schreiben/aktualisieren/entfernen (eine Note pro Klausur). */
+async function setExamResult(exam, points) {
+  const existing = gradeForExam(exam.id);
+  if (points == null) { if (existing) await dbDel('grades', existing.id); return; }
+  await dbPut('grades', {
+    id: existing ? existing.id : uid(),
+    subjectId: exam.subjectId,
+    examId: exam.id,
+    points,
+    label: exam.title || 'Klausur',
+    kind: 'exam',
+    date: exam.date || todayISO(),
+    createdAt: existing?.createdAt || Date.now(),
+  });
+}
 
 /* -------------------------------------------------------------------------
    5 · Toast / Modal / Confirm / Lightbox
@@ -1228,6 +1355,7 @@ function openTaskForm(existing) {
 
 function openExamForm(existing) {
   const t = existing || {};
+  const currentResult = existing ? examResult(existing.id) : null; // aus verknüpfter Note
   const m = openModal({ title: existing ? 'Klausur bearbeiten' : 'Neue Klausur' });
   m.body.innerHTML = `
     <div class="field"><label>Titel</label><input class="input" data-f="title" value="${esc(t.title || '')}" placeholder="z. B. Schulaufgabe"></div>
@@ -1235,9 +1363,12 @@ function openExamForm(existing) {
       <div class="field"><label>Fach</label><select class="select" data-f="subjectId">${subjectOptions(t.subjectId)}</select></div>
       <div class="field"><label>Datum</label><input class="input" type="date" data-f="date" value="${esc(t.date || todayISO())}"></div>
     </div>
-    <div class="row2">
-      <div class="field"><label>Uhrzeit <span class="hint">optional</span></label><input class="input" type="time" data-f="time" value="${esc(t.time || '')}"></div>
-      <div class="field"><label>Erreichte Punkte <span class="hint">nach der Klausur</span></label><input class="input" type="number" min="0" max="15" data-f="points" value="${t.points ?? ''}" placeholder="0–15"></div>
+    <div class="field"><label>Uhrzeit <span class="hint">optional</span></label><input class="input" type="time" data-f="time" value="${esc(t.time || '')}"></div>
+    <div class="field">
+      <label>Ergebnis <span class="hint">nach der Rückgabe · fließt automatisch in den Schnitt</span>
+        <button type="button" class="hint-btn" data-ptsclear>zurücksetzen</button>
+      </label>
+      ${ptsPicker('exam', currentResult)}
     </div>
     <div class="field"><label>Notiz <span class="hint">optional</span></label><textarea class="textarea" data-f="note" placeholder="Themen, Hinweise …">${esc(t.note || '')}</textarea></div>
     <div class="field"><label>Bilder <span class="hint">z. B. zurückgegebene Klausur</span></label><div data-imghost></div></div>`;
@@ -1245,44 +1376,56 @@ function openExamForm(existing) {
     ${existing ? `<button class="btn danger" data-del>Löschen</button>` : ''}
     <button class="btn ghost" data-close>Abbrechen</button>
     <button class="btn primary" data-save>Speichern</button>`;
+  wirePtsPicker(m.el);
+  $('[data-ptsclear]', m.el).onclick = () => {
+    $$('.pts-btn', m.el).forEach((x) => x.classList.remove('on'));
+    $('[data-ptsval="exam"]', m.el).value = '';
+  };
 
   const img = mountImageEditor($('[data-imghost]', m.el), existing ? imagesFor('exam', existing.id) : []);
 
   if (existing) $('[data-del]', m.el).onclick = async () => {
-    if (await confirmDialog('Diese Klausur und zugehörige Bilder löschen?')) {
+    if (await confirmDialog('Diese Klausur, ihr Ergebnis und zugehörige Bilder löschen?')) {
+      const linked = gradeForExam(existing.id);
+      if (linked) await dbDel('grades', linked.id);
       for (const im of imagesFor('exam', existing.id)) await dbDel('images', im.id);
       await dbDel('exams', existing.id);
-      await reload('exams'); await reload('images');
+      await Promise.all([reload('exams'), reload('grades'), reload('images')]);
       m.close(); render(); toast('Klausur gelöscht');
     }
   };
   $('[data-save]', m.el).onclick = async () => {
     const g = (f) => $(`[data-f="${f}"]`, m.el);
     const id = existing ? existing.id : uid();
-    let points = g('points').value === '' ? null : Math.max(0, Math.min(15, parseInt(g('points').value, 10)));
+    const pv = $('[data-ptsval="exam"]', m.el).value;
+    const points = pv === '' ? null : parseInt(pv, 10);
     const rec = {
       id,
       title: g('title').value.trim() || 'Klausur',
       subjectId: g('subjectId').value || null,
       date: g('date').value || null,
       time: g('time').value || null,
-      points,
       note: g('note').value.trim(),
       createdAt: existing?.createdAt || Date.now(),
     };
     await dbPut('exams', rec);
+    await setExamResult(rec, points);           // Note anlegen/aktualisieren/entfernen
     await img.persist('exam', id, { category: 'Klausur', subjectId: rec.subjectId, date: rec.date, title: rec.title });
-    await reload('exams'); await reload('images');
-    m.close(); render(); toast(existing ? 'Klausur gespeichert' : 'Klausur erstellt');
+    await Promise.all([reload('exams'), reload('grades'), reload('images')]);
+    m.close(); render();
+    toast(points != null ? 'Klausur & Ergebnis gespeichert' : (existing ? 'Klausur gespeichert' : 'Klausur erstellt'));
   };
 }
 
 function openGradeForm(existing, presetSubject) {
   const t = existing || {};
+  const fromExam = !!t.examId; // Note gehört zu einer Klausur
+  const linkedExam = fromExam ? byId('exams', t.examId) : null;
   const m = openModal({ title: existing ? 'Note bearbeiten' : 'Note hinzufügen' });
   m.body.innerHTML = `
+    ${fromExam ? `<div class="link-note">${icon('clipboard')}<span>Gehört zur Klausur „${esc(linkedExam?.title || t.label || 'Klausur')}“. Fach und Ergebnis bearbeitest du am besten direkt in der Klausur.</span></div>` : ''}
     <div class="row2">
-      <div class="field"><label>Fach</label><select class="select" data-f="subjectId">${subjectOptions(t.subjectId || presetSubject, false)}</select></div>
+      <div class="field"><label>Fach</label><select class="select" data-f="subjectId" ${fromExam ? 'disabled' : ''}>${subjectOptions(t.subjectId || presetSubject, false)}</select></div>
       <div class="field"><label>Datum</label><input class="input" type="date" data-f="date" value="${esc(t.date || todayISO())}"></div>
     </div>
     <div class="field"><label>Bezeichnung <span class="hint">optional</span></label><input class="input" data-f="label" value="${esc(t.label || '')}" placeholder="z. B. Schulaufgabe, Stegreif"></div>
@@ -1294,16 +1437,17 @@ function openGradeForm(existing, presetSubject) {
   wirePtsPicker(m.el);
 
   if (existing) $('[data-del]', m.el).onclick = async () => {
-    if (await confirmDialog('Diese Note löschen?')) {
+    const msg = fromExam ? 'Ergebnis dieser Klausur entfernen? Die Klausur selbst bleibt bestehen.' : 'Diese Note löschen?';
+    if (await confirmDialog(msg)) {
       await dbDel('grades', existing.id); await reload('grades');
-      m.close(); render(); toast('Note gelöscht');
+      m.close(); render(); toast(fromExam ? 'Ergebnis entfernt' : 'Note gelöscht');
     }
   };
   $('[data-save]', m.el).onclick = async () => {
     const g = (f) => $(`[data-f="${f}"]`, m.el);
     const pv = $('[data-ptsval="grade"]', m.el).value;
     if (pv === '') { toast('Punkte wählen'); return; }
-    const subjectId = g('subjectId').value;
+    const subjectId = fromExam ? t.subjectId : g('subjectId').value;
     if (!subjectId) { toast('Fach wählen'); return; }
     const rec = {
       id: existing ? existing.id : uid(),
@@ -1311,6 +1455,8 @@ function openGradeForm(existing, presetSubject) {
       points: parseInt(pv, 10),
       label: g('label').value.trim(),
       date: g('date').value || todayISO(),
+      examId: t.examId || null,
+      kind: t.kind || 'manual',
       createdAt: existing?.createdAt || Date.now(),
     };
     await dbPut('grades', rec); await reload('grades');
@@ -1353,11 +1499,25 @@ function openAppointmentForm(existing) {
   };
 }
 
-function openInternshipForm(existing) {
+function siteOptions(selected) {
+  return state.internshipSites
+    .map((s) => `<option value="${s.id}" ${s.id === selected ? 'selected' : ''}>${esc(s.name)}</option>`)
+    .join('');
+}
+
+function openInternshipForm(existing, presetSiteId) {
   const t = existing || {};
+  const siteId = t.siteId || presetSiteId || state.internshipSites[0]?.id || null;
   const m = openModal({ title: existing ? 'Praktikumstag bearbeiten' : 'Neuer Praktikumstag' });
   m.body.innerHTML = `
-    <div class="field"><label>Datum</label><input class="input" type="date" data-f="date" value="${esc(t.date || todayISO())}"></div>
+    <div class="row2">
+      <div class="field"><label>Praktikumsstelle</label><select class="select" data-f="siteId">${siteOptions(siteId)}</select></div>
+      <div class="field"><label>Datum</label><input class="input" type="date" data-f="date" value="${esc(t.date || todayISO())}"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Beginn <span class="hint">optional</span></label><input class="input" type="time" data-f="start" value="${esc(t.start || '')}"></div>
+      <div class="field"><label>Ende <span class="hint">optional</span></label><input class="input" type="time" data-f="end" value="${esc(t.end || '')}"></div>
+    </div>
     <div class="field"><label>Tagesbericht</label><textarea class="textarea" data-f="report" style="min-height:110px" placeholder="Was hast du heute gemacht?">${esc(t.report || '')}</textarea></div>
     <div class="field"><label>Notizen <span class="hint">optional</span></label><input class="input" data-f="note" value="${esc(t.note || '')}" placeholder="Weitere Infos"></div>
     <div class="field"><label>Bilder</label><div data-imghost></div></div>`;
@@ -1379,15 +1539,88 @@ function openInternshipForm(existing) {
   $('[data-save]', m.el).onclick = async () => {
     const g = (f) => $(`[data-f="${f}"]`, m.el);
     const id = existing ? existing.id : uid();
+    const chosenSite = g('siteId').value || null;
     const rec = {
-      id, date: g('date').value || todayISO(),
+      id, siteId: chosenSite,
+      date: g('date').value || todayISO(),
+      start: g('start').value || null, end: g('end').value || null,
       report: g('report').value.trim(), note: g('note').value.trim(),
       createdAt: existing?.createdAt || Date.now(),
     };
     await dbPut('internship', rec);
-    await img.persist('internship', id, { category: 'Praktikum', subjectId: null, date: rec.date, title: 'Praktikum' });
+    await img.persist('internship', id, { category: 'Praktikum', subjectId: null, date: rec.date, title: siteName(chosenSite) });
     await reload('internship'); await reload('images');
+    if (chosenSite) state.internView = { siteId: chosenSite };
     m.close(); render(); toast(existing ? 'Praktikumstag gespeichert' : 'Praktikumstag erstellt');
+  };
+}
+
+function openInternshipSiteForm(existing) {
+  const t = existing || {};
+  const m = openModal({ title: existing ? 'Praktikumsstelle bearbeiten' : 'Neue Praktikumsstelle' });
+  m.body.innerHTML = `
+    <div class="field"><label>Name der Einrichtung</label><input class="input" data-f="name" value="${esc(t.name || '')}" placeholder="z. B. Seniorenheim Sonnenhof"></div>
+    <div class="field"><label>Art der Einrichtung <span class="hint">optional</span></label><input class="input" data-f="kind" value="${esc(t.kind || '')}" placeholder="z. B. Altenpflege, Kindergarten, Klinik …"></div>
+    <div class="field"><label>Adresse <span class="hint">optional</span></label><input class="input" data-f="address" value="${esc(t.address || '')}" placeholder="Straße, PLZ Ort"></div>
+    <div class="row2">
+      <div class="field"><label>Ansprechpartner <span class="hint">optional</span></label><input class="input" data-f="contact" value="${esc(t.contact || '')}" placeholder="Name"></div>
+      <div class="field"><label>Telefon <span class="hint">optional</span></label><input class="input" type="tel" data-f="phone" value="${esc(t.phone || '')}" placeholder="Telefonnummer"></div>
+    </div>
+    <div class="field"><label>E-Mail <span class="hint">optional</span></label><input class="input" type="email" data-f="email" value="${esc(t.email || '')}" placeholder="E-Mail"></div>
+    <div class="row2">
+      <div class="field"><label>Von <span class="hint">optional</span></label><input class="input" type="date" data-f="periodStart" value="${esc(t.periodStart || '')}"></div>
+      <div class="field"><label>Bis <span class="hint">optional</span></label><input class="input" type="date" data-f="periodEnd" value="${esc(t.periodEnd || '')}"></div>
+    </div>
+    <div class="field"><label>Notizen <span class="hint">optional</span></label><textarea class="textarea" data-f="note" placeholder="Weitere Infos zur Stelle">${esc(t.note || '')}</textarea></div>
+    <div class="field"><label>Logo / Bild <span class="hint">optional</span></label><div data-imghost></div></div>`;
+  m.foot.innerHTML = `
+    ${existing ? `<button class="btn danger" data-del>Löschen</button>` : ''}
+    <button class="btn ghost" data-close>Abbrechen</button>
+    <button class="btn primary" data-save>Speichern</button>`;
+  setTimeout(() => $('[data-f="name"]', m.el).focus(), 60);
+
+  const img = mountImageEditor($('[data-imghost]', m.el), existing ? imagesFor('internshipSite', existing.id) : []);
+
+  if (existing) $('[data-del]', m.el).onclick = async () => {
+    const days = daysForSite(existing.id);
+    const dayImgs = days.reduce((n, d) => n + imagesFor('internship', d.id).length, 0);
+    const msg = days.length
+      ? `„${existing.name}“ mit ${days.length} Praktikumstag${days.length === 1 ? '' : 'en'} und allen zugehörigen Bildern löschen?`
+      : `„${existing.name}“ löschen?`;
+    if (await confirmDialog(msg)) {
+      for (const d of days) {
+        for (const im of imagesFor('internship', d.id)) await dbDel('images', im.id);
+        await dbDel('internship', d.id);
+      }
+      for (const im of imagesFor('internshipSite', existing.id)) await dbDel('images', im.id);
+      await dbDel('internshipSites', existing.id);
+      await Promise.all([reload('internshipSites'), reload('internship'), reload('images')]);
+      state.internView = null;
+      m.close(); render(); toast(`Stelle gelöscht${dayImgs ? '' : ''}`);
+    }
+  };
+  $('[data-save]', m.el).onclick = async () => {
+    const g = (f) => $(`[data-f="${f}"]`, m.el);
+    const name = g('name').value.trim();
+    if (!name) { g('name').focus(); toast('Name fehlt'); return; }
+    const id = existing ? existing.id : uid();
+    const rec = {
+      id, name,
+      kind: g('kind').value.trim(),
+      address: g('address').value.trim(),
+      contact: g('contact').value.trim(),
+      phone: g('phone').value.trim(),
+      email: g('email').value.trim(),
+      periodStart: g('periodStart').value || null,
+      periodEnd: g('periodEnd').value || null,
+      note: g('note').value.trim(),
+      createdAt: existing?.createdAt || Date.now(),
+    };
+    await dbPut('internshipSites', rec);
+    await img.persist('internshipSite', id, { category: 'Praktikum', subjectId: null, date: todayISO(), title: name });
+    await reload('internshipSites'); await reload('images');
+    state.internView = { siteId: id };
+    m.close(); render(); toast(existing ? 'Stelle gespeichert' : 'Stelle erstellt');
   };
 }
 
@@ -1439,7 +1672,7 @@ function renderDashboard() {
     ...todayExams.map((e) => ({ t: `${esc(e.title)} · ${esc(subjectName(e.subjectId))}`, m: 'Klausur' + (e.time ? ' · ' + e.time : ''), cls: 'danger', act: `openExam:${e.id}` })),
     ...todayTasks.map((t) => ({ t: esc(t.title), m: (t.subjectId ? subjectName(t.subjectId) : 'Aufgabe') + (daysUntil(t.dueDate) < 0 ? ' · überfällig' : ''), cls: daysUntil(t.dueDate) < 0 ? 'over' : 'danger', act: `openTask:${t.id}` })),
     ...todayAppts.map((a) => ({ t: esc(a.title), m: 'Termin' + (a.time ? ' · ' + a.time : ''), cls: 'accent', act: `openAppt:${a.id}` })),
-    ...todayIntern.map((i) => ({ t: 'Praktikum', m: i.report ? i.report.slice(0, 40) : 'Tagesbericht', cls: 'accent', act: `openIntern:${i.id}` })),
+    ...todayIntern.map((i) => ({ t: 'Praktikum · ' + esc(siteName(i.siteId)), m: i.report ? i.report.slice(0, 40) : 'Tagesbericht', cls: 'accent', act: `openIntern:${i.id}` })),
   ];
 
   const upcoming = [
@@ -1518,9 +1751,9 @@ function renderDashboard() {
 
       <div class="card interactive" data-act="goto:internship">
         <div class="card-head">${icon('briefcase')}<span class="card-title">Praktikum</span></div>
-        ${lastIntern ? `<div class="mini-t" style="font-size:14.5px">${esc(fmtLong.format(parseISO(lastIntern.date)))}</div>
-          <div class="stat-sub" style="margin-top:4px">${esc(lastIntern.report ? lastIntern.report.slice(0, 60) : 'Ohne Bericht')}</div>`
-          : `<div class="stat-sub">Noch kein Eintrag.</div>`}
+        ${lastIntern ? `<div class="mini-t" style="font-size:14.5px">${esc(siteName(lastIntern.siteId))}</div>
+          <div class="stat-sub" style="margin-top:4px">${esc(fmtLong.format(parseISO(lastIntern.date)))}${lastIntern.report ? ' · ' + esc(lastIntern.report.slice(0, 44)) : ''}</div>`
+          : `<div class="stat-sub">Noch keine Stelle.</div>`}
       </div>
 
       <div class="card interactive" data-act="gallery">
@@ -1581,7 +1814,7 @@ function renderCalendar() {
     state.tasks.filter((t) => !t.done && t.dueDate === iso).forEach((t) => events.push({ type: 'task', time: t.dueTime || '', title: t.title, sub: t.subjectId ? subjectName(t.subjectId) : 'Aufgabe / Abgabe', act: `openTask:${t.id}` }));
     state.exams.filter((e) => e.date === iso).forEach((e) => events.push({ type: 'exam', time: e.time || '', title: e.title, sub: 'Klausur · ' + subjectName(e.subjectId), act: `openExam:${e.id}` }));
     state.appointments.filter((a) => a.date === iso).forEach((a) => events.push({ type: 'appt', time: a.time || '', title: a.title, sub: 'Termin', act: `openAppt:${a.id}` }));
-    state.internship.filter((n) => n.date === iso).forEach((n) => events.push({ type: 'intern', time: '', title: 'Praktikum', sub: n.report ? n.report.slice(0, 50) : 'Tagesbericht', act: `openIntern:${n.id}` }));
+    state.internship.filter((n) => n.date === iso).forEach((n) => events.push({ type: 'intern', time: '', title: 'Praktikum · ' + siteName(n.siteId), sub: n.report ? n.report.slice(0, 50) : 'Tagesbericht', act: `openIntern:${n.id}` }));
     events.sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
     if (events.length || i <= 1) days.push({ iso, d, events });
   }
@@ -1625,6 +1858,11 @@ function examRow(e) {
   const meta = e.date ? dueMeta(e.date, e.time) : { cls: '', label: '' };
   const imgs = imagesFor('exam', e.id).length;
   const past = e.date && daysUntil(e.date) < 0;
+  const result = examResult(e.id);
+  let end;
+  if (result != null) end = `<span class="grade-avg-badge" style="font-size:14px">${result} P</span>`;
+  else if (past) end = `<span class="tag-muted">nicht bewertet</span>`;
+  else end = `<span class="due ${meta.cls}">${esc(relDayName(e.date))}</span>`;
   return `<div class="row" data-act="openExam:${e.id}">
     <span class="cal-bar exam" style="width:4px;height:34px;border-radius:3px"></span>
     <div class="row-main">
@@ -1633,7 +1871,7 @@ function examRow(e) {
     </div>
     <div class="row-end">
       ${imgs ? `<span class="thumb-count">${icon('image')}${imgs}</span>` : ''}
-      ${e.points != null ? `<span class="grade-avg-badge" style="font-size:14px">${e.points} P</span>` : (past ? '' : `<span class="due ${meta.cls}">${esc(relDayName(e.date))}</span>`)}
+      ${end}
     </div>
   </div>`;
 }
@@ -1675,23 +1913,88 @@ function gradeSubjectBlock(s) {
   </div>`;
 }
 
-/* --- Praktikum --- */
+/* --- Praktikum (V2: Stelle → Tage) --- */
 function renderInternship() {
-  const sorted = [...state.internship].sort((a, b) => b.date.localeCompare(a.date));
+  // Detailansicht einer Stelle?
+  if (state.internView && state.internView.siteId) {
+    const site = state.internshipSites.find((s) => s.id === state.internView.siteId);
+    if (site) return renderInternshipSite(site);
+    state.internView = null; // Stelle existiert nicht mehr → zurück zur Liste
+  }
+  const sites = [...state.internshipSites].sort((a, b) => a.name.localeCompare(b.name, 'de'));
   $('#view').innerHTML = `
     <div class="page-head">
-      <div><div class="page-title">Praktikum</div><div class="page-sub">${sorted.length} dokumentierte Tage</div></div>
-      <button class="btn primary" data-act="newIntern">${icon('plus')} Praktikumstag</button>
+      <div><div class="page-title">Praktikum</div><div class="page-sub">${sites.length} Praktikumsstelle${sites.length === 1 ? '' : 'n'}</div></div>
+      <button class="btn primary" data-act="newSite">${icon('plus')} Praktikumsstelle</button>
     </div>
-    ${sorted.length ? sorted.map(internCard).join('') : emptyBlock('Noch kein Praktikumstag dokumentiert.')}`;
+    ${sites.length ? `<div class="grid">${sites.map(siteCard).join('')}</div>`
+      : emptyBlock('Noch keine Praktikumsstelle.', 'Lege eine Einrichtung an – z. B. Seniorenheim, Kindergarten, Klinik. Danach dokumentierst du dort deine Tage.')}`;
 }
-function internCard(n) {
+function siteCard(s) {
+  const days = daysForSite(s.id);
+  const period = fmtPeriod(s.periodStart, s.periodEnd);
+  const logo = imagesFor('internshipSite', s.id)[0];
+  return `<div class="card interactive" data-act="openSite:${s.id}">
+    <div class="card-head">
+      ${logo ? `<span class="site-logo"><img src="${thumbUrl(logo)}" alt=""></span>` : icon('briefcase')}
+      <span class="card-title">${esc(s.name)}</span>
+    </div>
+    ${s.kind ? `<div class="stat-sub" style="margin-top:-2px">${esc(s.kind)}</div>` : ''}
+    <div class="row-meta" style="gap:14px;margin-top:10px">
+      <span>${days.length} Tag${days.length === 1 ? '' : 'e'}</span>
+      ${period ? `<span>${esc(period)}</span>` : ''}
+    </div>
+    ${s.address ? `<div class="stat-sub" style="margin-top:8px">${esc(s.address)}</div>` : ''}
+  </div>`;
+}
+function fmtPeriod(a, b) {
+  if (a && b) return `${fmtShort(a)} – ${fmtShort(b)}`;
+  if (a) return `ab ${fmtShort(a)}`;
+  if (b) return `bis ${fmtShort(b)}`;
+  return '';
+}
+function renderInternshipSite(site) {
+  const days = daysForSite(site.id).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const contactBits = [
+    site.contact ? esc(site.contact) : '',
+    site.phone ? `<a href="tel:${esc(site.phone)}">${esc(site.phone)}</a>` : '',
+    site.email ? `<a href="mailto:${esc(site.email)}">${esc(site.email)}</a>` : '',
+  ].filter(Boolean);
+  const period = fmtPeriod(site.periodStart, site.periodEnd);
+  const logo = imagesFor('internshipSite', site.id)[0];
+
+  $('#view').innerHTML = `
+    <div class="page-head">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0">
+        <button class="btn ghost sm back-btn" data-act="internList" aria-label="Zurück">${icon('chevron')}</button>
+        <div style="min-width:0"><div class="page-title" style="overflow:hidden;text-overflow:ellipsis">${esc(site.name)}</div>
+          <div class="page-sub">${esc(site.kind || 'Praktikumsstelle')}</div></div>
+      </div>
+      <button class="btn primary" data-act="newDayFor:${site.id}">${icon('plus')} Praktikumstag</button>
+    </div>
+
+    <div class="site-detail">
+      ${logo ? `<div class="site-detail-logo"><img src="${thumbUrl(logo)}" alt="" data-act="lightbox:${logo.id}"></div>` : ''}
+      <div class="site-meta">
+        ${site.address ? `<div class="site-meta-row">${icon('briefcase')}<span>${esc(site.address)}</span></div>` : ''}
+        ${contactBits.length ? `<div class="site-meta-row">${icon('inbox')}<span>${contactBits.join(' · ')}</span></div>` : ''}
+        ${period ? `<div class="site-meta-row">${icon('calendar')}<span>${esc(period)}</span></div>` : ''}
+        ${site.note ? `<div class="site-meta-row note">${esc(site.note)}</div>` : ''}
+      </div>
+      <button class="btn ghost sm" data-act="editSite:${site.id}">${icon('pencil')} Stelle bearbeiten</button>
+    </div>
+
+    <div class="section-label">Praktikumstage · ${days.length}</div>
+    ${days.length ? days.map(siteDayCard).join('') : emptyBlock('Noch kein Tag dokumentiert.', 'Tippe oben rechts auf „Praktikumstag“.')}`;
+}
+function siteDayCard(n) {
   const imgs = imagesFor('internship', n.id);
-  return `<div class="grade-subject" data-act="openIntern:${n.id}" style="cursor:pointer">
+  const timespan = (n.start || n.end) ? `${n.start || ''}${n.start && n.end ? ' – ' : ''}${n.end || ''} Uhr` : '';
+  return `<div class="grade-subject day-card" data-act="openIntern:${n.id}" style="cursor:pointer">
     <div class="grade-subject-head">
-      ${icon('briefcase')}
-      <div><div class="mini-t" style="font-size:15px">${esc(relDayName(n.date))} · ${esc(fmtLong.format(parseISO(n.date)))}</div>
-      ${n.note ? `<div class="stat-sub">${esc(n.note)}</div>` : ''}</div>
+      ${icon('clock')}
+      <div><div class="mini-t" style="font-size:15px">${esc(fmtLong.format(parseISO(n.date)))}</div>
+      <div class="stat-sub">${esc(fmtWeekday.format(parseISO(n.date)))}${timespan ? ' · ' + esc(timespan) : ''}${n.note ? ' · ' + esc(n.note) : ''}</div></div>
       ${imgs.length ? `<span class="thumb-count" style="margin-left:auto">${icon('image')}${imgs.length}</span>` : ''}
     </div>
     ${n.report ? `<p style="color:var(--text-2);font-size:14px;line-height:1.5;margin-bottom:${imgs.length ? '12px' : '0'}">${esc(n.report)}</p>` : ''}
@@ -1794,10 +2097,21 @@ function render() {
 }
 function navigate(view) {
   state.view = view;
+  state.internView = null; // Nav landet immer auf der Stellen-Liste, nie in einer Detailansicht
   if (location.hash !== '#' + view) history.replaceState(null, '', '#' + view);
   closeMenu();
   render();
   $('#view').scrollTop = 0;
+  window.scrollTo(0, 0);
+}
+/* Detailansicht einer Praktikumsstelle öffnen (ohne navigate, damit internView gesetzt bleibt) */
+function openSiteDetail(id) {
+  if (!byId('internshipSites', id)) return;
+  state.view = 'internship';
+  state.internView = { siteId: id };
+  if (location.hash !== '#internship') history.replaceState(null, '', '#internship');
+  closeMenu();
+  render();
   window.scrollTo(0, 0);
 }
 
@@ -1825,6 +2139,13 @@ async function handleAction(act) {
     case 'newGradeFor': return openGradeForm(null, arg);
     case 'goto': return navigate(arg);
     case 'gallery': return openGallery();
+    case 'newSite': return openInternshipSiteForm();
+    case 'editSite': return openInternshipSiteForm(byId('internshipSites', arg));
+    case 'openSite': return openSiteDetail(arg);
+    case 'internList': { state.internView = null; render(); return; }
+    case 'newDayFor': return openInternshipForm(null, arg);
+    case 'exportData': return exportBackup();
+    case 'importData': return importBackupPrompt();
     case 'openTask': return openTaskForm(byId('tasks', arg));
     case 'openExam': return openExamForm(byId('exams', arg));
     case 'openAppt': return openAppointmentForm(byId('appointments', arg));
@@ -1872,8 +2193,10 @@ function runSearch(q) {
       .map((s) => ({ icon: 'book', t: s.name, m: `Ø ${fmtAvg(subjectAverage(s.id))}`, act: `goto:grades` })),
     Termine: state.appointments.filter((a) => has(a.title) || has(a.note)).slice(0, 5)
       .map((a) => ({ icon: 'calendar', t: a.title, m: a.date ? relDayName(a.date) : '', act: `openAppt:${a.id}` })),
-    Praktikum: state.internship.filter((n) => has(n.report) || has(n.note) || has(relDayName(n.date))).slice(0, 5)
-      .map((n) => ({ icon: 'briefcase', t: `Praktikum · ${fmtShort(n.date)}`, m: n.report ? n.report.slice(0, 40) : '', act: `openIntern:${n.id}` })),
+    Praktikumsstellen: state.internshipSites.filter((s) => has(s.name) || has(s.kind) || has(s.address) || has(s.contact) || has(s.note)).slice(0, 6)
+      .map((s) => ({ icon: 'briefcase', t: s.name, m: [s.kind, `${daysForSite(s.id).length} Tage`].filter(Boolean).join(' · '), act: `openSite:${s.id}` })),
+    Praktikumstage: state.internship.filter((n) => has(n.report) || has(n.note) || has(siteName(n.siteId)) || has(relDayName(n.date))).slice(0, 5)
+      .map((n) => ({ icon: 'clock', t: `${siteName(n.siteId)} · ${fmtShort(n.date)}`, m: n.report ? n.report.slice(0, 40) : '', act: `openIntern:${n.id}` })),
     Bilder: state.images.filter((im) => has(im.title) || has(im.category) || has(subjectName(im.subjectId))).slice(0, 6)
       .map((im) => ({ icon: 'image', t: im.title || im.category, m: `${im.category}${im.subjectId ? ' · ' + subjectName(im.subjectId) : ''}`, act: `lightbox:${im.id}` })),
   };
@@ -1921,6 +2244,129 @@ async function seedIfEmpty() {
     }
     await reload('subjects');
   }
+}
+
+/* V1 → V2 Migration (additiv, zerstörungsfrei):
+   1. Praktikumstage aus V1 hatten keine siteId → einer automatisch angelegten
+      Sammel-Stelle „Mein Praktikum“ zuordnen, damit sie sichtbar bleiben.
+   2. V1-Klausuren mit direkt gespeicherten Punkten (exam.points) → in die
+      verknüpfte Note überführen, damit sie in Fach-/Gesamtschnitt zählen.
+   Es wird nichts gelöscht und nichts dupliziert. */
+async function migrateData() {
+  let touchedSites = false, touchedDays = false, touchedGrades = false;
+
+  const orphanDays = state.internship.filter((n) => !n.siteId);
+  if (orphanDays.length) {
+    let bucket = state.internshipSites.find((s) => s.migratedDefault);
+    if (!bucket) {
+      bucket = {
+        id: uid(), name: 'Mein Praktikum', kind: '', address: '',
+        contact: '', phone: '', email: '', periodStart: null, periodEnd: null,
+        note: 'Automatisch aus früheren Einträgen angelegt. Du kannst sie umbenennen.',
+        migratedDefault: true, createdAt: Date.now(),
+      };
+      await dbPut('internshipSites', bucket);
+      touchedSites = true;
+    }
+    for (const n of orphanDays) { n.siteId = bucket.id; await dbPut('internship', n); }
+    touchedDays = true;
+  }
+
+  for (const ex of state.exams) {
+    if (ex.points != null && !gradeForExam(ex.id)) {
+      await setExamResult(ex, ex.points);
+      touchedGrades = true;
+    }
+  }
+
+  const jobs = [];
+  if (touchedSites) jobs.push(reload('internshipSites'));
+  if (touchedDays) jobs.push(reload('internship'));
+  if (touchedGrades) jobs.push(reload('grades'));
+  if (jobs.length) await Promise.all(jobs);
+}
+
+/* ---- Lokales Backup: Export / Import (JSON, inkl. Bilder als Data-URL) ---- */
+function blobToDataURL(blob) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+function dataURLToBlob(dataURL) {
+  const [head, b64] = dataURL.split(',');
+  const mime = (head.match(/data:([^;]+)/) || [])[1] || 'application/octet-stream';
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+async function exportBackup() {
+  try {
+    toast('Sicherung wird erstellt …');
+    const data = { app: 'fos-dashboard', version: DB_VERSION, exportedAt: new Date().toISOString(), stores: {} };
+    for (const s of STORES) {
+      const rows = await dbAll(s);
+      if (s === 'images') {
+        data.stores[s] = await Promise.all(rows.map(async (r) => ({
+          ...r,
+          blob: await blobToDataURL(r.blob),
+          thumb: r.thumb ? await blobToDataURL(r.thumb) : null,
+        })));
+      } else {
+        data.stores[s] = rows;
+      }
+    }
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fos-dashboard-backup-${todayISO()}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast('Sicherung gespeichert');
+  } catch (err) { console.error(err); toast('Sicherung fehlgeschlagen'); }
+}
+function importBackupPrompt() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json,.json';
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      if (!data || !data.stores) { toast('Ungültige Sicherungsdatei'); return; }
+      const count = Object.values(data.stores).reduce((n, arr) => n + (Array.isArray(arr) ? arr.length : 0), 0);
+      const ok = await confirmDialog(
+        `${count} Einträge aus der Sicherung übernehmen? Einträge mit gleicher ID werden aktualisiert – es wird nichts gelöscht.`,
+        { danger: false, okLabel: 'Importieren' }
+      );
+      if (!ok) return;
+      toast('Import läuft …');
+      for (const s of STORES) {
+        const rows = data.stores[s];
+        if (!Array.isArray(rows)) continue;
+        for (const r of rows) {
+          if (s === 'images') {
+            const rec = { ...r };
+            if (typeof rec.blob === 'string') rec.blob = dataURLToBlob(rec.blob);
+            if (typeof rec.thumb === 'string') rec.thumb = dataURLToBlob(rec.thumb);
+            await dbPut('images', rec);
+          } else {
+            await dbPut(s, r);
+          }
+        }
+      }
+      await loadAll();
+      await migrateData();
+      render();
+      toast('Sicherung importiert');
+    } catch (err) { console.error(err); toast('Import fehlgeschlagen'); }
+  };
+  input.click();
 }
 
 function bindGlobalEvents() {
@@ -1971,6 +2417,7 @@ async function init() {
     await openDB();
     await loadAll();
     await seedIfEmpty();
+    await migrateData();
   } catch (err) {
     $('#view').innerHTML = emptyBlock('Speicher konnte nicht geöffnet werden.', 'Bitte im Browser den privaten Modus deaktivieren und neu laden.');
     console.error(err);
