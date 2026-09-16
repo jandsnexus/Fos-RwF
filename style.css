@@ -199,28 +199,27 @@ a { color: var(--accent); text-decoration: none; }
   align-items: center; justify-content: center;
   flex: none;
 }
-.head-titles { display: flex; flex-direction: column; min-width: 0; }
-.head-name { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
-.head-date { font-size: 13px; color: var(--text-2); margin-top: 2px; display: flex; align-items: center; gap: 8px; }
-.pill-today {
-  font-size: 11px; font-weight: 600;
-  color: var(--accent);
-  background: var(--accent-soft);
-  padding: 2px 8px; border-radius: 20px;
-}
+.head-titles { display: flex; flex-direction: column; min-width: 0; margin-right: auto; }
+.head-greeting { font-size: 21px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.12; }
+.head-greeting .greet-name { color: var(--accent); }
+.head-date { font-size: 13px; color: var(--text-2); margin-top: 3px; }
+.head-actions { display: flex; align-items: center; gap: 10px; flex: none; }
 
 .search {
-  margin-left: auto;
   position: relative;
-  width: min(320px, 40vw);
+  width: min(340px, 32vw);
+  flex: none;
 }
 .search input {
   width: 100%;
-  height: 38px;
-  padding: 0 14px 0 38px;
+  height: 40px;
+  padding: 0 14px 0 40px;
   border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--surface);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px; /* ≥16px gegen iOS-Zoom */
   outline: none;
   transition: border 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
@@ -577,10 +576,13 @@ a { color: var(--accent); text-decoration: none; }
 .field .hint { font-weight: 400; color: var(--text-3); }
 .input, .textarea, .select {
   width: 100%;
-  padding: 10px 13px;
+  padding: 11px 13px;
   border-radius: 11px;
   border: 1px solid var(--border);
   background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px; /* ≥16px verhindert Auto-Zoom in iOS Safari */
   outline: none;
   transition: border 0.15s var(--ease), box-shadow 0.15s var(--ease);
   -webkit-appearance: none;
@@ -771,6 +773,147 @@ a { color: var(--accent); text-decoration: none; }
 .day-card { cursor: pointer; transition: box-shadow 0.18s var(--ease), border 0.18s var(--ease); }
 .day-card:hover { box-shadow: var(--shadow-md); border-color: var(--border); }
 
+/* =========================================================================
+   V3 · Design, UX & Polish
+   ========================================================================= */
+
+/* Touch-Feinschliff */
+* { -webkit-tap-highlight-color: transparent; }
+button, a, [data-act], .nav-item, .card.interactive, .row, .day-row, .site-card, .mini-row.click, .cal-event, .seg-btn {
+  touch-action: manipulation;
+}
+.card.interactive:active { transform: scale(0.99); }
+.nav-item:active { transform: scale(0.98); }
+.row:active, .day-row:active, .site-card:active, .mini-row.click:active, .cal-event:active { background: var(--surface-2); }
+
+/* Seitenübergang – dezenter Fade + minimaler Slide */
+@keyframes viewIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.view-anim { animation: viewIn 0.24s var(--ease); }
+
+/* Praktikum – Stellen-Liste (horizontale Karten) */
+.site-list { display: flex; flex-direction: column; gap: 10px; }
+.site-card {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: box-shadow 0.18s var(--ease), transform 0.12s var(--ease), border 0.18s var(--ease);
+}
+.site-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.site-card-thumb {
+  width: 58px; height: 58px; border-radius: 12px; flex: none;
+  overflow: hidden; background: var(--surface-2);
+  display: grid; place-items: center; color: var(--text-3);
+}
+.site-card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.site-card-thumb .ico { width: 24px; height: 24px; }
+.site-card-main { flex: 1; min-width: 0; }
+.site-card-name { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.site-card-kind { font-size: 13px; color: var(--text-2); margin-top: 1px; }
+.site-card-meta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; font-size: 12.5px; color: var(--text-3); }
+.day-chev { color: var(--text-3); flex: none; display: grid; place-items: center; }
+.day-chev .ico { width: 18px; height: 18px; }
+
+/* Praktikum – Detailkopf mit Hero-Bild */
+.detail-head { justify-content: space-between; }
+.site-hero {
+  position: relative;
+  width: 100%; height: 220px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-sm);
+  background: var(--surface-2);
+  cursor: zoom-in;
+}
+.site-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.site-hero-cap {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 34px 18px 16px;
+  background: linear-gradient(to top, rgba(0,0,0,0.68), rgba(0,0,0,0));
+  color: #fff;
+}
+.site-hero-cap h2 { font-size: 23px; font-weight: 700; letter-spacing: -0.02em; }
+.site-hero-cap span { font-size: 13.5px; opacity: 0.92; }
+.site-headline { margin-bottom: 14px; }
+.site-headline h2 { font-size: 25px; font-weight: 700; letter-spacing: -0.025em; }
+.site-kind { font-size: 14px; color: var(--text-2); margin-top: 3px; }
+
+/* Praktikumstage – kompakte Zeilen mit Datums-Badge */
+.day-list { display: flex; flex-direction: column; gap: 8px; }
+.day-row {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 11px 14px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: box-shadow 0.18s var(--ease), border 0.18s var(--ease);
+}
+.day-row:hover { box-shadow: var(--shadow-md); }
+.day-date {
+  width: 46px; flex: none;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 6px 0; border-radius: 10px;
+  background: var(--accent-soft); color: var(--accent);
+}
+.day-date .dd { font-size: 18px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.day-date .dm { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; margin-top: 2px; }
+.day-main { flex: 1; min-width: 0; }
+.day-title { font-size: 15px; font-weight: 500; }
+.day-status { font-size: 12.5px; color: var(--text-2); margin-top: 2px; }
+.day-status.muted { color: var(--text-3); font-style: italic; }
+
+/* Einstellungen */
+.settings-list { display: flex; flex-direction: column; gap: 12px; max-width: 560px; }
+.settings-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-sm);
+}
+.settings-label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14.5px; font-weight: 600; letter-spacing: -0.01em;
+}
+.settings-label .ico { width: 17px; height: 17px; color: var(--text-3); }
+.settings-hint { font-size: 12.5px; color: var(--text-3); margin: 6px 0 12px; line-height: 1.45; }
+.settings-card .input { max-width: 320px; }
+.settings-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.seg {
+  display: inline-flex; gap: 4px; margin-top: 12px;
+  background: var(--surface-2); border: 1px solid var(--border-2);
+  border-radius: 12px; padding: 4px;
+}
+.seg-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 16px; border-radius: 9px;
+  font-size: 13.5px; font-weight: 500; color: var(--text-2);
+  background: transparent; border: none;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.seg-btn .ico { width: 16px; height: 16px; }
+.seg-btn.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+
+/* Bilder-Seite */
+.gallery-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+.img-cell { margin: 0; }
+.img-cap {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 14px 8px 6px;
+  font-size: 10.5px; color: #fff;
+  background: linear-gradient(to top, rgba(0,0,0,0.6), rgba(0,0,0,0));
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
 /* ---------- Responsive: Smartphone ---------- */
 .overlay {
   display: none;
@@ -784,7 +927,7 @@ a { color: var(--accent); text-decoration: none; }
   .app { grid-template-columns: 1fr; }
   .sidebar {
     position: fixed; left: 0; top: 0;
-    width: min(280px, 82vw);
+    width: min(300px, 84vw);
     transform: translateX(-100%);
     transition: transform 0.26s var(--ease);
     box-shadow: var(--shadow-pop);
@@ -793,17 +936,30 @@ a { color: var(--accent); text-decoration: none; }
   .app.menu-open .sidebar { transform: translateX(0); }
   .app.menu-open .overlay { display: block; opacity: 1; }
   .hamburger { display: flex; }
-  .topbar { padding: 14px 16px; padding-top: max(14px, env(safe-area-inset-top)); gap: 12px; }
-  .head-name { font-size: 17px; }
-  .head-date { font-size: 12px; }
-  .search { width: auto; margin-left: auto; }
-  .search.collapsed input { width: 40px; padding-left: 40px; cursor: pointer; }
-  .view { padding: 20px 16px 60px; }
+
+  /* Großzügiger, bewusst gestapelter Header */
+  .topbar {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 18px;
+    padding-top: max(16px, env(safe-area-inset-top));
+  }
+  .head-titles { order: 1; margin-right: auto; }
+  .head-actions { order: 2; }
+  .search { order: 3; width: 100%; }
+  .head-greeting { font-size: 24px; line-height: 1.12; }
+  .head-greeting .greet-name { display: block; }
+  .head-date { font-size: 13.5px; margin-top: 4px; }
+  .search-panel { left: 0; right: 0; width: auto; top: 48px; }
+
+  .view { padding: 22px 18px; padding-bottom: max(64px, env(safe-area-inset-bottom)); }
   .grid { grid-template-columns: 1fr; gap: 12px; }
   .page-title { font-size: 22px; }
   .modal { border-radius: 20px 20px 0 0; }
   .row2 { grid-template-columns: 1fr; }
-  .search-panel { right: -60px; width: min(360px, 90vw); }
+  .site-hero { height: 184px; }
+  .site-hero-cap h2 { font-size: 20px; }
+  .nav-item { padding: 11px 12px; font-size: 15px; }
 }
 
 @media (min-width: 861px) {
